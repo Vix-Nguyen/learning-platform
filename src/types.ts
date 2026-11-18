@@ -8,3 +8,14 @@ export interface AppState { version: 1; settings: Settings; logs: StudyLog[]; er
 export interface MentorMessage { role: 'user' | 'assistant'; content: string }
 export interface AIFeedback { criteria: { name: string; score?: number; feedback: string }[]; corrections?: { original: string; improved: string; reason: string }[]; summary?: string }
 export interface MentorResponse { reply: string; feedback?: AIFeedback }
+export interface ChatGPTStatus {
+  connected: boolean;
+  activeId?: string;
+  accounts: { id: string; label: string }[];
+}
+export interface SessionStatus {
+  authenticated: boolean;
+  authEnabled: boolean;
+  aiConfigured: boolean;
+  chatgpt?: ChatGPTStatus;
+}

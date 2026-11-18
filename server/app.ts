@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import { CHATGPT_CALLBACK, ChatGPTError, createChatGPTMentor } from './chatgpt';
 
 const COOKIE = 'fluentpath_session';
 const SESSION_MS = 8 * 60 * 60 * 1000;
@@ -15,6 +16,7 @@ export interface AppOptions {
   distDir?: string;
   now?: () => number;
   fetcher?: typeof fetch;
+  chatgpt?: { origin: string; directory: string };
 }
 
 type Session = { authenticated: boolean; username?: string };
@@ -29,6 +31,11 @@ function safeEqual(left: string, right: string): boolean {
   const a = Buffer.from(left);
   const b = Buffer.from(right);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function cookie(req: Request, name: string) {
+  return req.headers.cookie?.split(';').map(part => part.trim())
+    .find(part => part.startsWith(`${name}=`))?.slice(name.length + 1);
 }
 
 function signature(payload: string, secret: string): string {
@@ -74,7 +81,7 @@ function validMentorInput(body: unknown): body is {
   if (input.messages !== undefined) {
     if (!Array.isArray(input.messages) || input.messages.length > 24) return false;
     if (!input.messages.every((item) => item && typeof item === 'object'
-      && ['user', 'assistant'].includes(String((item as Record<string, unknown>).role))
+      && (item.role === 'user' || item.role === 'assistant')
       && typeof (item as Record<string, unknown>).content === 'string'
       && ((item as Record<string, unknown>).content as string).length <= 6000)) return false;
   }
@@ -101,7 +108,8 @@ function systemPrompt(mode: string, language: string, writingTask = ''): string 
 function parseProviderContent(content: unknown): { reply: string; feedback?: unknown } | null {
   if (typeof content !== 'string' || !content.trim()) return null;
   try {
-    const parsed = JSON.parse(content) as Record<string, unknown>;
+    const json = /^\s*```(?:json)?\s*([\s\S]*?)\s*```\s*$/i.exec(content)?.[1] ?? content;
+    const parsed = JSON.parse(json) as Record<string, unknown>;
     if (typeof parsed.reply === 'string' && parsed.reply.trim()) return { reply: parsed.reply, feedback: parsed.feedback };
   } catch { /* Plain text is a valid provider response. */ }
   return { reply: content.trim() };
@@ -144,14 +152,30 @@ export function createApp(options: AppOptions = {}) {
   const basePath = normalizeBasePath(env.APP_BASE_PATH);
   const apiPath = `${basePath}/api` || '/api';
   const secureCookie = production;
+  if (options.chatgpt && (production || host !== '127.0.0.1' || !/^http:\/\/127\.0\.0\.1:\d+$/.test(options.chatgpt.origin))) {
+    throw new Error('ChatGPT mentor mode requires a local IPv4 loopback server.');
+  }
+  const chatgpt = options.chatgpt ? createChatGPTMentor({ ...options.chatgpt, fetcher, now }) : undefined;
+  const flowCookie = 'fluentpath_chatgpt_state';
+  const flowCookieOptions = { httpOnly: true, sameSite: 'lax' as const, path: CHATGPT_CALLBACK };
 
   app.disable('x-powered-by');
+  if (chatgpt) {
+    const expectedHost = new URL(chatgpt.origin).host;
+    app.use((req, res, next) => {
+      res.setHeader('Referrer-Policy', 'no-referrer');
+      res.setHeader('Cache-Control', 'no-store');
+      if (req.get('host') !== expectedHost) return res.status(403).send('Open FluentPath at its 127.0.0.1 address.');
+      next();
+    });
+  }
   app.use(express.json({ limit: '64kb', strict: true }));
 
   function session(req: Request): Session {
     if (!authEnabled || !secret) return { authenticated: true };
-    const raw = req.headers.cookie?.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);
-    return verifySession(raw ? decodeURIComponent(raw) : undefined, secret, now());
+    const raw = cookie(req, COOKIE);
+    try { return verifySession(raw ? decodeURIComponent(raw) : undefined, secret, now()); }
+    catch { return { authenticated: false }; }
   }
   function requireAuth(req: Request, res: Response, next: NextFunction) {
     if (session(req).authenticated) return next();
@@ -170,11 +194,50 @@ export function createApp(options: AppOptions = {}) {
     next();
   }
 
-  app.get(`${apiPath}/session`, (req, res) => res.json({
-    authenticated: session(req).authenticated,
-    authEnabled,
-    aiConfigured: Boolean(env.LLM_BASE_URL && env.LLM_API_KEY && env.LLM_MODEL),
-  }));
+  function chatgptError(res: Response, error: unknown) {
+    if (error instanceof ChatGPTError) {
+      return res.status(error.status).json({ error: error.message, code: error.code, requestId: error.requestId });
+    }
+    return res.status(502).json({ error: 'Không thể dùng kết nối ChatGPT. Hãy kiểm tra kết nối hoặc thư mục lưu cục bộ.' });
+  }
+
+  app.get(`${apiPath}/session`, (req, res) => {
+    const { authenticated } = session(req);
+    try {
+      const connection = authenticated ? chatgpt?.status() : undefined;
+      return res.json({
+        authenticated,
+        authEnabled,
+        aiConfigured: chatgpt ? Boolean(connection?.connected) : Boolean(env.LLM_BASE_URL && env.LLM_API_KEY && env.LLM_MODEL),
+        chatgpt: connection,
+      });
+    } catch {
+      return res.json({ authenticated, authEnabled, aiConfigured: false, chatgpt: { connected: false, accounts: [] } });
+    }
+  });
+
+  if (chatgpt) {
+    app.post(`${apiPath}/chatgpt/connect`, requireAuth, sameOrigin, async (req, res) => {
+      const id = req.body?.id;
+      if (id !== undefined && typeof id !== 'string') return res.status(400).json({ error: 'Kết nối không hợp lệ.' });
+      try {
+        const attempt = await chatgpt.begin(id);
+        res.cookie(flowCookie, attempt.state, { ...flowCookieOptions, maxAge: attempt.maxAge });
+        return res.json({ url: attempt.url });
+      } catch (error) { return chatgptError(res, error); }
+    });
+    app.get(CHATGPT_CALLBACK, async (req, res) => {
+      const params = new URL(req.originalUrl, chatgpt.origin).searchParams;
+      const result = await chatgpt.finish(params, cookie(req, flowCookie) ?? '');
+      if (result !== 'invalid') res.clearCookie(flowCookie, flowCookieOptions);
+      return res.redirect(303, `${basePath}/?chatgpt=${result}`);
+    });
+    app.post(`${apiPath}/chatgpt/disconnect`, requireAuth, sameOrigin, async (req, res) => {
+      if (typeof req.body?.id !== 'string') return res.status(400).json({ error: 'Kết nối không hợp lệ.' });
+      try { return res.json(await chatgpt.disconnect(req.body.id)); }
+      catch (error) { return chatgptError(res, error); }
+    });
+  }
 
   app.post(`${apiPath}/login`, sameOrigin, (req, res) => {
     if (!authEnabled || !secret || !username || !password) return res.status(404).json({ error: 'Sign-in is not enabled.' });
@@ -201,53 +264,60 @@ export function createApp(options: AppOptions = {}) {
     res.json({ ok: true });
   });
 
-  app.post(`${apiPath}/mentor`, requireAuth, async (req, res) => {
+  app.post(`${apiPath}/mentor`, requireAuth, (req, res, next) => chatgpt ? sameOrigin(req, res, next) : next(), async (req, res) => {
     if (!validMentorInput(req.body)) return res.status(400).json({ error: 'The mentor request is invalid or too large.' });
-    if (!env.LLM_BASE_URL || !env.LLM_API_KEY || !env.LLM_MODEL) return res.status(503).json({ error: 'The AI mentor is not configured. Add LLM_BASE_URL, LLM_API_KEY, and LLM_MODEL to the server environment.' });
-    let endpoint: URL;
-    try {
-      endpoint = new URL(env.LLM_BASE_URL);
-      if (endpoint.protocol !== 'https:' && !(endpoint.protocol === 'http:' && isLoopback(endpoint.hostname))) throw new Error();
-      endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/chat/completions`;
-    } catch {
-      return res.status(503).json({ error: 'The AI mentor server configuration is invalid.' });
-    }
     const input = req.body;
+    const writingContext = [input.task, input.text, ...(input.messages ?? []).map(message => message.content)].filter(Boolean).join('\n');
+    const instructions = systemPrompt(input.mode, input.language, writingContext);
     const messages = [
-      { role: 'system', content: systemPrompt(input.mode, input.language, [input.task, input.text, ...(input.messages ?? []).map((message) => message.content)].filter(Boolean).join('\n')) },
       ...(input.messages ?? []),
-      ...(!input.messages?.length && input.text ? [{ role: 'user', content: `${input.task ? `Task or question: ${input.task}\n\n` : ''}${input.text}` }] : []),
-      ...(input.task && input.messages?.length ? [{ role: 'user', content: `Task or question: ${input.task}` }] : []),
+      ...(!input.messages?.length && input.text ? [{ role: 'user' as const, content: `${input.task ? `Task or question: ${input.task}\n\n` : ''}${input.text}` }] : []),
+      ...(input.task && input.messages?.length ? [{ role: 'user' as const, content: `Task or question: ${input.task}` }] : []),
     ];
     try {
-      const response = await fetcher(endpoint, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${env.LLM_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: env.LLM_MODEL, messages, temperature: 0.3, max_tokens: 2000 }),
-        redirect: 'error',
-        signal: AbortSignal.timeout(30000),
-      });
-      if (!response.ok) return res.status(502).json({ error: 'The AI mentor could not complete that request. Please try again later.' });
-      const data = await response.json() as { choices?: { message?: { content?: unknown } }[] };
-      const result = parseProviderContent(data.choices?.[0]?.message?.content);
+      let content: unknown;
+      if (chatgpt) {
+        content = await chatgpt.complete(instructions, messages);
+      } else {
+        if (!env.LLM_BASE_URL || !env.LLM_API_KEY || !env.LLM_MODEL) return res.status(503).json({ error: 'The AI mentor is not configured. Add LLM_BASE_URL, LLM_API_KEY, and LLM_MODEL to the server environment.' });
+        let endpoint: URL;
+        try {
+          endpoint = new URL(env.LLM_BASE_URL);
+          if (endpoint.protocol !== 'https:' && !(endpoint.protocol === 'http:' && isLoopback(endpoint.hostname))) throw new Error();
+          endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/chat/completions`;
+        } catch {
+          return res.status(503).json({ error: 'The AI mentor server configuration is invalid.' });
+        }
+        const response = await fetcher(endpoint, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${env.LLM_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: env.LLM_MODEL, messages: [{ role: 'system', content: instructions }, ...messages], temperature: 0.3, max_tokens: 2000 }),
+          redirect: 'error',
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!response.ok) return res.status(502).json({ error: 'The AI mentor could not complete that request. Please try again later.' });
+        const data = await response.json() as { choices?: { message?: { content?: unknown } }[] };
+        content = data.choices?.[0]?.message?.content;
+      }
+      const result = parseProviderContent(content);
       if (!result) return res.status(502).json({ error: 'The AI mentor returned an unusable response. Please try again.' });
       const output: { reply: string; feedback?: unknown } = { reply: result.reply };
       const feedback = result.feedback;
       if (validFeedback(feedback)) {
-        const writingTask = [input.task, input.text, ...(input.messages ?? []).map((message) => message.content)].filter(Boolean).join('\n');
-        const responseCriterion = /\btask\s*1\b/i.test(writingTask) ? 'Task Achievement' : 'Task Response';
+        const responseCriterion = /\btask\s*1\b/i.test(writingContext) ? 'Task Achievement' : 'Task Response';
         const writingCriteria = [responseCriterion, 'Coherence and Cohesion', 'Lexical Resource', 'Grammatical Range and Accuracy'];
         const writingFeedbackValid = input.mode !== 'writing' || (feedback.criteria.length === 4
           && writingCriteria.every((name) => feedback.criteria.some((criterion) => criterion.name === name)));
         if (writingFeedbackValid) output.feedback = feedback;
       }
       res.json(output);
-    } catch {
+    } catch (error) {
+      if (chatgpt) return chatgptError(res, error);
       res.status(502).json({ error: 'The AI mentor is temporarily unavailable. Please try again later.' });
     }
   });
 
-  if (production && options.distDir) {
+  if ((production || chatgpt) && options.distDir) {
     const root = path.resolve(options.distDir);
     app.use(basePath || '/', express.static(root, { index: false }));
     app.get([basePath || '/', `${basePath}/*path`], (req, res, next) => {

@@ -265,3 +265,10 @@ textarea { min-height: 85px; resize: vertical; line-height: 1.55; }
 }
 @media (max-width: 360px) { .breadcrumb > span, .breadcrumb > svg { display: none; }.topbar { padding-right: 10px; padding-left: 10px; }.topbar-actions { gap: 1px; }.mentor-trigger > span:not(.mentor-trigger-icon) { display: none; }.icon-button, .top-theme { width: 40px; height: 40px; }.page-content, .page-footer { padding-left: 12px; padding-right: 12px; }.allocation-label { font-size: 11px; }.legend-item { font-size: 11px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+.chatgpt-settings { display: grid; gap: 10px; margin-top: 12px; }
+.chatgpt-settings .field-note { margin: 0; overflow-wrap: anywhere; }
+.chatgpt-actions { flex-wrap: wrap; }
+.chatgpt-settings summary { cursor: pointer; }
+.chatgpt-accounts { display: grid; gap: 8px; list-style: none; padding: 0; }
+.chatgpt-accounts li { display: grid; gap: 4px; overflow-wrap: anywhere; }

@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createApp } from './app';
 
@@ -9,8 +10,17 @@ try {
   if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
 }
 
-const host = process.env.HOST || '127.0.0.1';
-const port = Number(process.env.PORT || 8787);
+const useChatGPT = process.argv.includes('--chatgpt-local');
+const host = useChatGPT ? '127.0.0.1' : process.env.HOST || '127.0.0.1';
+const port = useChatGPT ? 5173 : Number(process.env.PORT || 8787);
 const production = process.env.NODE_ENV === 'production';
-const app = createApp({ host, production, distDir: path.join(root, 'dist') });
-app.listen(port, host, () => console.log(`FluentPath server listening on http://${host}:${port}`));
+const origin = `http://${host}:${port}`;
+const directory = process.platform === 'win32' && process.env.LOCALAPPDATA
+  ? path.join(process.env.LOCALAPPDATA, 'FluentPath', 'chatgpt')
+  : path.join(homedir(), '.config', 'fluentpath-ielts', 'chatgpt');
+const app = createApp({
+  host, production, distDir: path.join(root, 'dist'),
+  env: useChatGPT ? { ...process.env, APP_BASE_PATH: '/' } : process.env,
+  chatgpt: useChatGPT ? { origin, directory } : undefined,
+});
+app.listen(port, host, () => console.log(`FluentPath server listening on ${origin}`));

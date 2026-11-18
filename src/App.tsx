@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDownRight, ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock3, Compass, Download, Flame, Headphones, LogOut, Menu, MessageCircle, Moon, MoreHorizontal, Pause, Play, Plus, RotateCcw, Search, Settings2, ShieldCheck, Sparkles, Sun, Target, Trash2, Upload, X } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
-import type { AppState, Page, Skill, StudyLog } from './types';
+import type { AppState, ChatGPTStatus, Page, SessionStatus, Skill, StudyLog } from './types';
 import { actions, storageError, useAppStore } from './lib/store';
 import { addDays, formatMinutes, localDate, studyStreak, totalMinutes, weekDates } from './lib/progress';
 import { login, logout, sessionStatus } from './lib/api';
@@ -10,6 +10,7 @@ import CommandMenu from './components/CommandMenu';
 import PracticeHub from './components/PracticeHub';
 import { Vocabulary } from './components/Vocabulary';
 import { ErrorLog } from './components/ErrorLog';
+import ChatGPTSettings from './components/ChatGPTSettings';
 
 const nav: { id: Page; label: string; icon: typeof Compass }[] = [
   { id: 'dashboard', label: 'Overview', icon: Compass }, { id: 'planner', label: 'Study plan', icon: CalendarDays },
@@ -29,7 +30,8 @@ function uid() { return crypto.randomUUID(); }
 
 export default function App() {
   const state = useAppStore();
-  const [page, setPage] = useState<Page>('dashboard');
+  const [chatGPTResult] = useState(() => new URLSearchParams(window.location.search).get('chatgpt') ?? undefined);
+  const [page, setPage] = useState<Page>(chatGPTResult ? 'settings' : 'dashboard');
   const [menuOpen, setMenuOpen] = useState(false);
   const [mentorOpen, setMentorOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
@@ -44,7 +46,7 @@ export default function App() {
   const [running, setRunning] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [notice, setNotice] = useState('');
-  const [auth, setAuth] = useState<{ authenticated: boolean; authEnabled: boolean; aiConfigured: boolean } | null>(null);
+  const [auth, setAuth] = useState<SessionStatus | null>(null);
   const [loginError, setLoginError] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -57,7 +59,14 @@ export default function App() {
   const clearMentorPrompt = useCallback(() => setMentorPrompt(''), []);
   const handleFocusChange = useCallback((focused: boolean) => { if (!showFocusTimer) setFocusMode(focused); }, [showFocusTimer]);
 
-  useEffect(() => { void sessionStatus().then(setAuth); }, []);
+  const refreshSession = useCallback(async () => { setAuth(await sessionStatus()); }, []);
+  useEffect(() => { void refreshSession(); }, [refreshSession]);
+  useEffect(() => {
+    if (!chatGPTResult) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('chatgpt');
+    window.history.replaceState(null, '', url);
+  }, [chatGPTResult]);
   useEffect(() => { document.documentElement.dataset.theme = state.settings.theme; }, [state.settings.theme]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -96,7 +105,7 @@ export default function App() {
     const blob = new Blob([actions.exportData()], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `fluentpath-progress-${localDate()}.json`; a.click(); URL.revokeObjectURL(url); setNotice('Progress backup downloaded.');
   };
   const importBackup = async (file?: File) => { if (!file) return; try { actions.importData(await file.text()); setNotice('Progress backup restored.'); } catch (e) { setNotice(e instanceof Error ? e.message : 'Could not read that backup.'); } if (importRef.current) importRef.current.value = ''; };
-  const signIn = async (e: FormEvent<HTMLFormElement>) => { e.preventDefault(); const d = new FormData(e.currentTarget); setLoggingIn(true); setLoginError(''); try { await login(String(d.get('username')), String(d.get('password'))); setAuth(v => v ? { ...v, authenticated: true } : v); } catch (e) { setLoginError(e instanceof Error ? e.message : 'Sign in failed.'); } finally { setLoggingIn(false); } };
+  const signIn = async (e: FormEvent<HTMLFormElement>) => { e.preventDefault(); const d = new FormData(e.currentTarget); setLoggingIn(true); setLoginError(''); try { await login(String(d.get('username')), String(d.get('password'))); await refreshSession(); } catch (e) { setLoginError(e instanceof Error ? e.message : 'Sign in failed.'); } finally { setLoggingIn(false); } };
   const signOut = async () => { setLoggingOut(true); try { await logout(); if (auth) setAuth({ ...auth, authenticated: false }); } finally { setLoggingOut(false); } };
 
   if (auth?.authEnabled && !auth.authenticated) return <main className="login-screen"><div className="login-box"><BrandMark large /><h1>Welcome back.</h1><p className="muted">Sign in to continue your study journey.</p><form className="settings-form login-form" onSubmit={signIn}><label>Username<input name="username" autoComplete="username" required /></label><label>Password<input name="password" type="password" autoComplete="current-password" required /></label>{loginError && <p className="form-error" role="alert">{loginError}</p>}<button className="btn btn-primary" disabled={loggingIn}>{loggingIn ? 'Signing in…' : 'Sign in'}</button></form></div></main>;
@@ -115,7 +124,7 @@ export default function App() {
         {page === 'planner' && <Planner state={state} date={plannerDate} setDate={setPlannerDate} week={week} weekMinutes={weekMinutes} onStart={startTimer} onManual={() => setManualOpen(true)} />}
         {page === 'practice' && <section className="practice-shell">{showFocusTimer && <><header className="practice-toolbar"><div><h1>Study session</h1></div><div className="practice-toolbar-actions">{focusMode && <button className="btn btn-ghost" onClick={() => { setFocusMode(false); setRunning(false); }}><ArrowLeft size={16}/> Exit focus</button>}</div></header><div className="timer-panel panel"><div className="timer-left"><span className="timer-state"><span className={`status-dot${running ? ' live' : ''}`}/>{running ? 'SESSION IN PROGRESS' : seconds ? 'SESSION PAUSED' : 'READY WHEN YOU ARE'}</span><div className="timer-clock" aria-live="off">{elapsedLabel}</div><label className="timer-task-label">What are you working on?<input value={timerTask} onChange={e => setTimerTask(e.target.value)} disabled={running} aria-label="Study session title" /></label></div><div className="timer-controls"><button className="timer-main-button" onClick={() => setRunning(v => !v)} aria-label={running ? 'Pause timer' : 'Start timer'}>{running ? <Pause size={20}/> : <Play size={20} fill="currentColor"/>}<span>{running ? 'Pause' : seconds ? 'Resume' : 'Start session'}</span></button><button className="btn btn-ghost" onClick={() => { setRunning(false); setSeconds(0); }}><RotateCcw size={16}/> Reset</button><button className="btn btn-primary" disabled={seconds < 1} onClick={finishTimer}><Check size={16}/> Finish & log</button></div></div></>}<PracticeHub initialSkill={initialSkill} onAskMentor={askMentor} onFocusChange={handleFocusChange} /></section>}
         {page === 'vocabulary' && <Vocabulary />}{page === 'errors' && <ErrorLog />}
-        {page === 'settings' && <SettingsPage state={state} aiConfigured={auth?.aiConfigured ?? false} authEnabled={auth?.authEnabled ?? false} onNotice={setNotice} onExport={downloadBackup} onImport={() => importRef.current?.click()} onLogout={() => void signOut()} loggingOut={loggingOut} />}
+        {page === 'settings' && <SettingsPage state={state} aiConfigured={auth?.aiConfigured ?? false} authEnabled={auth?.authEnabled ?? false} chatGPT={auth?.chatgpt} chatGPTResult={chatGPTResult} onRefreshSession={refreshSession} onNotice={setNotice} onExport={downloadBackup} onImport={() => importRef.current?.click()} onLogout={() => void signOut()} loggingOut={loggingOut} />}
       </main>
       {!focusMode && <footer className="page-footer"><span>Small steps add up.</span><span>FluentPath <i>·</i> IELTS Academic</span></footer>}
     </div>
@@ -123,7 +132,7 @@ export default function App() {
     {manualOpen && <ManualLog onClose={closeManual} onSubmit={manualLog}/>}
     {notice && <div className="toast" role="status"><Check size={17}/>{notice}<button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={16}/></button></div>}
     {storageError && <div className="storage-warning" role="alert"><ShieldCheck size={16}/>{storageError}</div>}
-    <Mentor open={mentorOpen} onClose={closeMentor} language={state.settings.mentorLanguage} aiConfigured={auth?.aiConfigured ?? false} initialPrompt={mentorPrompt} onPromptUsed={clearMentorPrompt}/>
+    <Mentor open={mentorOpen} onClose={closeMentor} language={state.settings.mentorLanguage} aiConfigured={auth?.aiConfigured ?? false} usesChatGPT={auth?.chatgpt?.connected} initialPrompt={mentorPrompt} onPromptUsed={clearMentorPrompt}/>
     <CommandMenu open={menuOpen} onClose={closeMenu} onNavigate={go}/>
   </div>;
 }
@@ -178,12 +187,12 @@ function ManualLog({ onClose, onSubmit }: { onClose: () => void; onSubmit: (e: F
   return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><section className="manual-modal" role="dialog" aria-modal="true" aria-labelledby="log-title" ref={ref}><header><div className="modal-mark"><Clock3 size={18}/></div><div><h2 id="log-title">Add a study session</h2><p>For time you’ve already spent studying.</p></div><button className="icon-button" aria-label="Close" onClick={onClose}><X size={18}/></button></header><form className="settings-form" onSubmit={onSubmit}><label>What did you work on?<input ref={first} name="title" placeholder="e.g. Cambridge Listening Test 2" required maxLength={120}/></label><div className="form-row"><label>Skill<select name="skill" defaultValue="foundations">{Object.entries(skillName).map(([k, v]) => <option value={k} key={k}>{v}</option>)}</select></label><label>Time spent (minutes)<input name="minutes" type="number" min="1" max="1440" defaultValue="30" required/></label></div><label>Study date<input name="date" type="date" defaultValue={localDate()} max={localDate()} required/></label><div className="modal-actions"><button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary"><Check size={16}/> Save session</button></div></form></section></div>;
 }
 
-function SettingsPage({ state, aiConfigured, authEnabled, onNotice, onExport, onImport, onLogout, loggingOut }: { state: AppState; aiConfigured: boolean; authEnabled: boolean; onNotice: (s: string) => void; onExport: () => void; onImport: () => void; onLogout: () => void; loggingOut: boolean }) {
+function SettingsPage({ state, aiConfigured, authEnabled, chatGPT, chatGPTResult, onRefreshSession, onNotice, onExport, onImport, onLogout, loggingOut }: { state: AppState; aiConfigured: boolean; authEnabled: boolean; chatGPT?: ChatGPTStatus; chatGPTResult?: string; onRefreshSession: () => Promise<void>; onNotice: (s: string) => void; onExport: () => void; onImport: () => void; onLogout: () => void; loggingOut: boolean }) {
   const roadmap = state.settings.startDate;
   return <section className="settings-page"><header className="page-heading"><div><h1>Settings</h1><p className="muted">Choose a plan that works for your life and keep your learning backed up.</p></div></header>
     <div className="settings-layout"><div className="settings-content">
       <section className="settings-card panel"><div className="settings-card-head"><div className="settings-icon"><Target size={18}/></div><div><h2>Your IELTS goal</h2><p>Adjust the target and timeline for your study plan.</p></div></div><div className="settings-form"><label>Target band<select value={state.settings.targetBand} onChange={e => actions.updateSettings({ targetBand: Number(e.target.value) })}>{[5,5.5,6,6.5,7,7.5,8,8.5,9].map(n => <option value={n} key={n}>{n.toFixed(1)}</option>)}</select></label><label>Study plan start date<input type="date" value={roadmap} onChange={e => { actions.updateSettings({ startDate: e.target.value }); onNotice('Your six-month roadmap date was updated.'); }}/></label><p className="field-note">Aiming for your goal by {friendlyDate(addDays(roadmap, 181), { month: 'long', day: 'numeric', year: 'numeric' })}.</p></div></section>
-      <section className="settings-card panel"><div className="settings-card-head"><div className="settings-icon language"><MessageCircle size={18}/></div><div><h2>Study mentor</h2><p>Set the language used for explanations.</p></div><span className={`connection-status${aiConfigured ? ' connected' : ''}`}><i/>{aiConfigured ? 'Connected' : 'Not connected'}</span></div><label className="settings-select">Explanation language<select value={state.settings.mentorLanguage} onChange={e => actions.updateSettings({ mentorLanguage: e.target.value as 'vi' | 'en' })}><option value="vi">Vietnamese explanations</option><option value="en">English explanations</option></select></label><p className="field-note">The mentor opens when your optional AI server is configured.</p></section>
+      <section className="settings-card panel"><div className="settings-card-head"><div className="settings-icon language"><MessageCircle size={18}/></div><div><h2>Study mentor</h2><p>Set the language used for explanations.</p></div><span className={`connection-status${aiConfigured ? ' connected' : ''}`}><i/>{aiConfigured ? 'Connected' : 'Not connected'}</span></div><label className="settings-select">Explanation language<select value={state.settings.mentorLanguage} onChange={e => actions.updateSettings({ mentorLanguage: e.target.value as 'vi' | 'en' })}><option value="vi">Vietnamese explanations</option><option value="en">English explanations</option></select></label>{chatGPT ? <ChatGPTSettings status={chatGPT} result={chatGPTResult} onRefresh={onRefreshSession}/> : <p className="field-note">The mentor opens when your optional AI server is configured.</p>}</section>
       <section className="settings-card panel"><div className="settings-card-head"><div className="settings-icon appearance"><Sun size={18}/></div><div><h2>Appearance</h2><p>Choose a comfortable workspace theme.</p></div></div><div className="theme-options"><button className={`theme-option${state.settings.theme === 'light' ? ' selected' : ''}`} onClick={() => actions.updateSettings({ theme: 'light' })}><Sun size={18}/><span>Light</span>{state.settings.theme === 'light' && <Check size={16}/>}</button><button className={`theme-option${state.settings.theme === 'dark' ? ' selected' : ''}`} onClick={() => actions.updateSettings({ theme: 'dark' })}><Moon size={18}/><span>Dark</span>{state.settings.theme === 'dark' && <Check size={16}/>}</button></div></section>
       <section className="settings-card panel"><div className="settings-card-head"><div className="settings-icon backup"><ShieldCheck size={18}/></div><div><h2>Your progress & privacy</h2><p>Your study data is saved in this browser. Back it up before switching devices.</p></div></div><div className="backup-actions"><button className="btn btn-ghost" onClick={onExport}><Download size={16}/> Export backup</button><button className="btn btn-ghost" onClick={onImport}><Upload size={16}/> Import backup</button></div><p className="field-note">Includes your study log, vocabulary, error log, and preferences.</p></section>
       {authEnabled && <section className="settings-card panel signout-card"><div className="settings-card-head"><div className="settings-icon signout"><LogOut size={18}/></div><div><h2>Account</h2><p>Sign out of this device.</p></div></div><button className="btn btn-ghost" onClick={onLogout} disabled={loggingOut}><LogOut size={16}/>{loggingOut ? 'Signing out…' : 'Sign out'}</button></section>}

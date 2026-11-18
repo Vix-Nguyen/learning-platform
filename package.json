@@ -10,11 +10,13 @@
     "build:worker": "node scripts/build-worker.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "start": "tsx server/index.ts",
+    "mentor:local": "npm run build -- --base / --mode chatgpt-local && tsx server/index.ts --chatgpt-local",
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "^5.2.8",
     "express": "^5.1.0",
+    "jose": "^6.2.17",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

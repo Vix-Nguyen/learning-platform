@@ -9,7 +9,7 @@ const quick = [
   { label: 'Speaking practice', icon: Mic2, prompt: 'Give me one IELTS Speaking Part 2 prompt and help me practise.' },
 ];
 
-export default function Mentor({ open, onClose, language, aiConfigured, initialPrompt = '', onPromptUsed }: { open: boolean; onClose: () => void; language: 'vi' | 'en'; aiConfigured: boolean; initialPrompt?: string; onPromptUsed?: () => void }) {
+export default function Mentor({ open, onClose, language, aiConfigured, usesChatGPT, initialPrompt = '', onPromptUsed }: { open: boolean; onClose: () => void; language: 'vi' | 'en'; aiConfigured: boolean; usesChatGPT?: boolean; initialPrompt?: string; onPromptUsed?: () => void }) {
   const [messages, setMessages] = useState<MentorMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -25,7 +25,7 @@ export default function Mentor({ open, onClose, language, aiConfigured, initialP
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
       if (e.key === 'Tab' && drawer.current) {
-        const els = [...drawer.current.querySelectorAll<HTMLElement>('button:not([disabled]), textarea:not([disabled])')];
+        const els = [...drawer.current.querySelectorAll<HTMLElement>('button:not([disabled]), textarea:not([disabled]), a[href]')];
         if (e.shiftKey && document.activeElement === els[0]) { e.preventDefault(); els.at(-1)?.focus(); }
         else if (!e.shiftKey && document.activeElement === els.at(-1)) { e.preventDefault(); els[0]?.focus(); }
       }
@@ -61,6 +61,7 @@ export default function Mentor({ open, onClose, language, aiConfigured, initialP
       <form className="mentor-compose" onSubmit={e => { e.preventDefault(); void send(); }}>
         {!aiConfigured && <p className="mentor-notice">The optional AI server isn’t configured. Your message won’t be sent until it is available.</p>}
         <div className="mentor-input-wrap"><textarea ref={input} value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }} placeholder="Ask a study question…" rows={2} maxLength={4000} aria-label="Message your study mentor" disabled={!aiConfigured || busy} /><button aria-label="Send message" type="submit" className="send-button" disabled={!draft.trim() || busy || !aiConfigured}><ArrowUp size={18} /></button></div>
+        {usesChatGPT && <p className="mentor-footnote">Đang dùng gói ChatGPT · <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noreferrer">Manage usage</a></p>}
         <span className="mentor-footnote"><Check size={13} /> AI feedback is a learning aid, not an official IELTS score.</span>
       </form>
     </aside>

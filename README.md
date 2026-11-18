@@ -2,6 +2,8 @@
 
 A focused IELTS Academic workspace for a Vietnamese software engineer preparing for 6.5+ in six months. React + TypeScript + Tailwind, local browser storage, original mini drills, Vietnamese mentor explanations, and an optional remote AI adapter.
 
+See the [product review and prioritized backlog](docs/product-review-2026-11-18.md) for the current gaps, Vietnamese-first study flow, and a ChatGPT subscription mentor option for the main computer.
+
 Live: [FluentPath](https://fluentpath-ielts.nguyenvipy.workers.dev), protected by a lightweight Cloudflare Worker. Credentials are kept in the ignored private `.env` and encrypted Worker bindings. No VPS is required.
 
 ## Run quickly
@@ -40,7 +42,20 @@ For a purely static SPA, run `npm run dev:spa`. Build with `npm run build`, then
 
 Progress belongs to the current browser/profile and origin. Export it in Settings before clearing storage or moving between local and hosted versions. This version has no cross-device sync. Audio recordings stay in memory until downloaded; drafts and progress stay in browser storage. Browser speech-recognition services may process microphone audio remotely; use manual transcription if that is unsuitable.
 
-## Connect the mentor
+## Use your ChatGPT plan on your main computer
+
+After this checkout is available on the main computer, stop any FluentPath dev server and run:
+
+```sh
+npm ci
+npm run mentor:local
+```
+
+Open [FluentPath locally](http://127.0.0.1:5173/) and go to **Settings → Study mentor → Continue with ChatGPT**. Sign in to an eligible account, allow FluentPath to use your plan, and select **Thử kết nối** when you return. A successful test sends a short sample prompt and counts toward the plan's usage. Use **Manage usage** to view limits and **Tài khoản ChatGPT** to reconnect or disconnect.
+
+This command listens only at `127.0.0.1:5173`. Use the same browser and address to see existing study data from local development. Progress on the hosted site is stored separately. OAuth credentials stay in your computer's user directory, outside the repository and study backups. The local mode uses ChatGPT plan authorization for mentor chat, writing feedback, and speaking transcripts. OpenAI's current preview handles text and excludes audio input and transcription. [OpenAI integration guide](https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt) · [Preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)
+
+## Connect an API-key provider
 
 Create a private `.env` from `.env.example`. The server loads it automatically. Set these private variables for an OpenAI-compatible provider:
 
