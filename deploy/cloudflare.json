@@ -1,0 +1,12 @@
+{
+  "worker_name": "fluentpath-ielts",
+  "account_id": "0abd9ddd1ad743046dd63cfebf511da2",
+  "compatibility_date": "2026-11-17",
+  "assets_directory": "dist",
+  "worker_entry": "dist-worker/index.js",
+  "asset_binding": "ASSETS",
+  "run_worker_first": true,
+  "not_found_handling": "single-page-application",
+  "required_secret_bindings": ["AUTH_USERNAME", "AUTH_PASSWORD"],
+  "optional_secret_bindings": ["LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"]
+}

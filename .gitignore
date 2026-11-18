@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-worker/
+.env
+.env.*
+!.env.example
+*.log
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/live/

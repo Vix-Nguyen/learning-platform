@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-18T00:00:00Z",
+  "title": "Design System: FluentPath",
+  "extensions": {
+    "typographyMeta": {
+      "body": {
+        "displayName": "Be Vietnam Pro",
+        "purpose": "Interface and study text, including Vietnamese explanations."
+      },
+      "display-accent": {
+        "displayName": "Georgia Italic Accent",
+        "purpose": "Emphasized word in the dashboard greeting."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel-ambient",
+        "value": "0 2px 8px rgba(28, 48, 35, .018)",
+        "purpose": "Subtle separation for resting panels."
+      },
+      {
+        "name": "ambient",
+        "value": "0 12px 35px rgba(35, 57, 45, .06)",
+        "purpose": "Login surface and hover emphasis."
+      },
+      {
+        "name": "floating",
+        "value": "0 24px 70px rgba(20, 33, 26, .2)",
+        "purpose": "Drawers, dialogs, menus, and toasts."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-state",
+        "value": "150ms ease",
+        "purpose": "Button and navigation color or border changes."
+      },
+      {
+        "name": "overlay-entry",
+        "value": "220ms ease-out",
+        "purpose": "Mentor drawer entrance."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Removes smooth scrolling and minimizes animations and transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile-rail",
+        "value": "680px"
+      },
+      {
+        "name": "practice-single-column",
+        "value": "760px"
+      },
+      {
+        "name": "tablet-layout",
+        "value": "900px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main action for starting or submitting a study task.",
+      "html": "<button class=\"ds-btn-primary\">Start practice</button>",
+      "css": ".ds-btn-primary { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: white; font: 600 12px 'Be Vietnam Pro', sans-serif; cursor: pointer; transition: background .15s ease, border-color .15s ease; } .ds-btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); } .ds-btn-primary:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 48%, transparent); outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action beside a primary study action.",
+      "html": "<button class=\"ds-btn-ghost\">View details</button>",
+      "css": ".ds-btn-ghost { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink-2); font: 600 12px 'Be Vietnam Pro', sans-serif; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease; } .ds-btn-ghost:hover { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); background: var(--accent-soft-2); color: var(--accent); } .ds-btn-ghost:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 48%, transparent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Shared native field treatment for forms and writing tasks.",
+      "html": "<label class=\"ds-field-wrap\">Answer<input class=\"ds-field\" placeholder=\"Write your answer\"></label>",
+      "css": ".ds-field-wrap { display: grid; gap: 5px; color: var(--ink-2); font: 500 11px 'Be Vietnam Pro', sans-serif; } .ds-field { width: 100%; min-height: 40px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--surface); color: var(--ink); font: 400 14px/1.55 'Be Vietnam Pro', sans-serif; transition: border-color .15s, box-shadow .15s; } .ds-field:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); border-color: var(--accent); } .ds-field:disabled { opacity: .52; cursor: not-allowed; }"
+    },
+    {
+      "name": "Navigation Link",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Sidebar destination with quiet hover and clear active state.",
+      "html": "<a class=\"ds-nav-link\" href=\"#practice\">Practice hub</a>",
+      "css": ".ds-nav-link { position: relative; min-height: 42px; display: flex; align-items: center; padding: 0 12px; border-radius: 9px; color: var(--muted); text-decoration: none; font: 500 13px 'Be Vietnam Pro', sans-serif; transition: background .16s ease, color .16s ease; } .ds-nav-link:hover { color: var(--ink); background: var(--surface-2); } .ds-nav-link:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 48%, transparent); outline-offset: 2px; } .ds-nav-link[aria-current=\"page\"] { color: var(--accent); background: var(--accent-soft); font-weight: 600; } .ds-nav-link[aria-current=\"page\"]::before { position: absolute; left: -2px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); content: ''; }"
+    },
+    {
+      "name": "Panel Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Resting white surface for study summaries and task content.",
+      "html": "<section class=\"ds-card\"><strong>Today’s progress</strong><p>Keep your next study step in view.</p></section>",
+      "css": ".ds-card { padding: 19px 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); box-shadow: 0 2px 8px rgba(28, 48, 35, .018); font-family: 'Be Vietnam Pro', sans-serif; } .ds-card strong { font-size: 14px; font-weight: 600; } .ds-card p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }"
+    },
+    {
+      "name": "Study Allocation Strip",
+      "kind": "custom",
+      "refersTo": "allocation-track",
+      "description": "Three semantic progress segments for the daily study allocation.",
+      "html": "<div class=\"ds-allocation\" aria-label=\"Daily study allocation\"><span class=\"ds-segment ds-sage\"><i></i></span><span class=\"ds-segment ds-blue\"><i></i></span><span class=\"ds-segment ds-amber\"><i></i></span></div>",
+      "css": ".ds-allocation { height: 11px; display: flex; gap: 5px; overflow: hidden; border-radius: 9px; } .ds-segment { min-width: 2px; flex: 1; overflow: hidden; border-radius: 8px; background: var(--surface-2); } .ds-segment i { display: block; width: 55%; height: 100%; border-radius: inherit; } .ds-sage { background: color-mix(in srgb, var(--sage) 23%, var(--surface-2)); } .ds-sage i { background: var(--sage); } .ds-blue { background: color-mix(in srgb, var(--blue) 24%, var(--surface-2)); } .ds-blue i { background: var(--blue); } .ds-amber { background: color-mix(in srgb, var(--amber) 22%, var(--surface-2)); } .ds-amber i { background: var(--amber); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Study Grove",
+    "overview": "FluentPath is a calm, practical workspace for returning to English study. A warm off-white ground, forest actions, quiet borders, and restrained status colors keep attention on the next useful learning step. Be Vietnam Pro supports Vietnamese explanations and English practice; a Georgia italic accent adds a small human note to display greetings.\n\nThe interface uses familiar native controls, clear interaction states, and generous reading space. Light is the default; a complete dark palette preserves the same semantic roles. Motion is brief and functional, with reduced-motion preferences respected.",
+    "keyCharacteristics": [
+      "Paper-like light surfaces with dark ink and forest actions.",
+      "Semantic sage, amber, blue, and red status treatments.",
+      "Quietly rounded controls and lightly layered panels."
+    ],
+    "rules": [
+      {
+        "name": "The Semantic Color Rule",
+        "body": "Use status colors for their established study meaning; never rely on color alone to communicate a result.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do use Be Vietnam Pro for interface and study text so Vietnamese explanations remain legible.",
+      "Do reserve Georgia italic for the existing display accent.",
+      "Do keep interactive controls semantic, keyboard visible, and clearly stateful.",
+      "Do map sage, blue, and amber to the established study allocation categories."
+    ],
+    "donts": [
+      "Don't invent additional status colors or use semantic colors as decoration.",
+      "Don't use color alone for selection, errors, or progress meaning.",
+      "Don't compress practice reading into the denser interface text rhythm."
+    ]
+  }
+}

@@ -1,0 +1,262 @@
+import crypto from 'node:crypto';
+import path from 'node:path';
+import express, { type NextFunction, type Request, type Response } from 'express';
+
+const COOKIE = 'fluentpath_session';
+const SESSION_MS = 8 * 60 * 60 * 1000;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_LIMIT = 5;
+const MODES = new Set(['chat', 'writing', 'speaking', 'practice']);
+
+export interface AppOptions {
+  env?: NodeJS.ProcessEnv;
+  host?: string;
+  production?: boolean;
+  distDir?: string;
+  now?: () => number;
+  fetcher?: typeof fetch;
+}
+
+type Session = { authenticated: boolean; username?: string };
+type LoginAttempt = { count: number; resetAt: number };
+
+function isLoopback(host: string): boolean {
+  const normalized = host.toLowerCase().replace(/^\[|\]$/g, '');
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1';
+}
+
+function safeEqual(left: string, right: string): boolean {
+  const a = Buffer.from(left);
+  const b = Buffer.from(right);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function signature(payload: string, secret: string): string {
+  return crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+}
+
+function signSession(username: string, secret: string, expires: number): string {
+  const payload = Buffer.from(JSON.stringify({ username, expires })).toString('base64url');
+  return `${payload}.${signature(payload, secret)}`;
+}
+
+function verifySession(value: string | undefined, secret: string, now: number): Session {
+  if (!value) return { authenticated: false };
+  const [payload, supplied, extra] = value.split('.');
+  if (!payload || !supplied || extra || !safeEqual(signature(payload, secret), supplied)) return { authenticated: false };
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString()) as { username?: unknown; expires?: unknown };
+    if (typeof parsed.username !== 'string' || typeof parsed.expires !== 'number' || parsed.expires <= now) return { authenticated: false };
+    return { authenticated: true, username: parsed.username };
+  } catch {
+    return { authenticated: false };
+  }
+}
+
+function normalizeBasePath(raw: string | undefined): string {
+  const value = (raw || '').trim();
+  if (!value || value === '/') return '';
+  return `/${value.replace(/^\/+|\/+$/g, '')}`;
+}
+
+function validMentorInput(body: unknown): body is {
+  mode: 'chat' | 'writing' | 'speaking' | 'practice';
+  messages?: { role: 'user' | 'assistant'; content: string }[];
+  text?: string;
+  task?: string;
+  language: 'vi' | 'en';
+} {
+  if (!body || typeof body !== 'object') return false;
+  const input = body as Record<string, unknown>;
+  if (typeof input.mode !== 'string' || !MODES.has(input.mode) || !['vi', 'en'].includes(String(input.language))) return false;
+  if (input.text !== undefined && (typeof input.text !== 'string' || input.text.length > 12000)) return false;
+  if (input.task !== undefined && (typeof input.task !== 'string' || input.task.length > 12000)) return false;
+  if (input.messages !== undefined) {
+    if (!Array.isArray(input.messages) || input.messages.length > 24) return false;
+    if (!input.messages.every((item) => item && typeof item === 'object'
+      && ['user', 'assistant'].includes(String((item as Record<string, unknown>).role))
+      && typeof (item as Record<string, unknown>).content === 'string'
+      && ((item as Record<string, unknown>).content as string).length <= 6000)) return false;
+  }
+  if (input.mode === 'chat' && (!Array.isArray(input.messages) || input.messages.length === 0)) return false;
+  if (input.mode !== 'chat' && typeof input.text !== 'string' && !Array.isArray(input.messages)) return false;
+  return true;
+}
+
+function systemPrompt(mode: string, language: string, writingTask = ''): string {
+  const base = `You are a careful IELTS Academic learning mentor. Give provisional coaching, never official scores. Explain in ${language === 'vi' ? 'Vietnamese' : 'English'} by default; use English for examples and corrections. Do not invent evidence or claim certainty beyond the submitted work.`;
+  if (mode === 'writing') {
+    const task1 = /\btask\s*1\b/i.test(writingTask);
+    const responseCriterion = task1 ? 'Task Achievement' : 'Task Response';
+    const taskContext = task1
+      ? 'This is IELTS Academic Writing Task 1. Assess Task Achievement, including accurate coverage and comparison of the supplied table data. Do not assess Task Response.'
+      : 'This is IELTS Academic Writing Task 2 unless the supplied task clearly identifies Task 1. Assess Task Response.';
+    return `${base} ${taskContext} Evaluate only the supplied writing. Return JSON with keys reply and feedback. feedback.criteria must contain exactly four items named ${responseCriterion}, Coherence and Cohesion, Lexical Resource, and Grammatical Range and Accuracy. Each item has feedback and may have a provisional score from 0 to 9 in half-band steps. Include corrections only when grounded in the text. State limitations if task prompt/context is missing.`;
+  }
+  if (mode === 'speaking') return `${base} Coach the supplied speaking transcript. Comment on fluency, vocabulary, grammar, and answer development where evidenced. Never assess pronunciation or claim to hear audio from text. Return JSON with keys reply and optional feedback; omit unsupported judgments.`;
+  if (mode === 'practice') return `${base} Help with the supplied practice question or response. Distinguish an example answer from an assessment. Return JSON with keys reply and optional feedback.`;
+  return `${base} Answer as a supportive IELTS study mentor. Keep answers practical, concise, and grounded in the conversation.`;
+}
+
+function parseProviderContent(content: unknown): { reply: string; feedback?: unknown } | null {
+  if (typeof content !== 'string' || !content.trim()) return null;
+  try {
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+    if (typeof parsed.reply === 'string' && parsed.reply.trim()) return { reply: parsed.reply, feedback: parsed.feedback };
+  } catch { /* Plain text is a valid provider response. */ }
+  return { reply: content.trim() };
+}
+
+function validFeedback(feedback: unknown): feedback is { criteria: { name: string; score?: number; feedback: string }[]; corrections?: { original: string; improved: string; reason: string }[]; summary?: string } {
+  if (!feedback || typeof feedback !== 'object') return false;
+  const value = feedback as Record<string, unknown>;
+  if (!Array.isArray(value.criteria) || value.criteria.length > 8) return false;
+  if (!value.criteria.every((item) => {
+    if (!item || typeof item !== 'object') return false;
+    const criterion = item as Record<string, unknown>;
+    return typeof criterion.name === 'string' && typeof criterion.feedback === 'string'
+      && (criterion.score === undefined || (typeof criterion.score === 'number' && criterion.score >= 0 && criterion.score <= 9));
+  })) return false;
+  if (value.corrections !== undefined && (!Array.isArray(value.corrections) || value.corrections.length > 20
+    || !value.corrections.every((item) => item && typeof item === 'object'
+      && ['original', 'improved', 'reason'].every((key) => typeof (item as Record<string, unknown>)[key] === 'string')))) return false;
+  if (value.summary !== undefined && typeof value.summary !== 'string') return false;
+  return true;
+}
+
+export function createApp(options: AppOptions = {}) {
+  const env = options.env ?? process.env;
+  const host = options.host ?? env.HOST ?? '127.0.0.1';
+  const production = options.production ?? env.NODE_ENV === 'production';
+  const username = env.AUTH_USERNAME;
+  const password = env.AUTH_PASSWORD;
+  const secret = env.SESSION_SECRET;
+  const anyAuthSetting = Boolean(username || password || secret);
+  const authEnabled = Boolean(username && password && secret);
+  if ((production || !isLoopback(host)) && !authEnabled) throw new Error('AUTH_USERNAME, AUTH_PASSWORD, and SESSION_SECRET are required in production or on non-loopback hosts.');
+  if (anyAuthSetting && !authEnabled) throw new Error('Configure AUTH_USERNAME, AUTH_PASSWORD, and SESSION_SECRET together.');
+  if (authEnabled && secret!.length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters.');
+
+  const app = express();
+  const now = options.now ?? Date.now;
+  const fetcher = options.fetcher ?? fetch;
+  const attempts = new Map<string, LoginAttempt>();
+  const basePath = normalizeBasePath(env.APP_BASE_PATH);
+  const apiPath = `${basePath}/api` || '/api';
+  const secureCookie = production;
+
+  app.disable('x-powered-by');
+  app.use(express.json({ limit: '64kb', strict: true }));
+
+  function session(req: Request): Session {
+    if (!authEnabled || !secret) return { authenticated: true };
+    const raw = req.headers.cookie?.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);
+    return verifySession(raw ? decodeURIComponent(raw) : undefined, secret, now());
+  }
+  function requireAuth(req: Request, res: Response, next: NextFunction) {
+    if (session(req).authenticated) return next();
+    return res.status(401).json({ error: 'Please sign in to continue.' });
+  }
+  function sameOrigin(req: Request, res: Response, next: NextFunction) {
+    const origin = req.get('origin');
+    if (!origin) return res.status(403).json({ error: 'A same-origin request is required.' });
+    try {
+      const parsed = new URL(origin);
+      if (parsed.host !== req.get('host') || parsed.protocol !== `${req.protocol}:`) return res.status(403).json({ error: 'A same-origin request is required.' });
+    } catch {
+      return res.status(403).json({ error: 'A same-origin request is required.' });
+    }
+    if (req.get('sec-fetch-site') === 'cross-site') return res.status(403).json({ error: 'A same-origin request is required.' });
+    next();
+  }
+
+  app.get(`${apiPath}/session`, (req, res) => res.json({
+    authenticated: session(req).authenticated,
+    authEnabled,
+    aiConfigured: Boolean(env.LLM_BASE_URL && env.LLM_API_KEY && env.LLM_MODEL),
+  }));
+
+  app.post(`${apiPath}/login`, sameOrigin, (req, res) => {
+    if (!authEnabled || !secret || !username || !password) return res.status(404).json({ error: 'Sign-in is not enabled.' });
+    const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+    const attempt = attempts.get(ip);
+    if (attempt && attempt.resetAt > now() && attempt.count >= LOGIN_LIMIT) return res.status(429).json({ error: 'Too many sign-in attempts. Try again later.' });
+    const body = req.body as Record<string, unknown>;
+    const suppliedUser = typeof body?.username === 'string' ? body.username : '';
+    const suppliedPass = typeof body?.password === 'string' ? body.password : '';
+    const valid = safeEqual(suppliedUser, username) && safeEqual(suppliedPass, password);
+    if (!valid) {
+      const current = attempt && attempt.resetAt > now() ? attempt : { count: 0, resetAt: now() + LOGIN_WINDOW_MS };
+      attempts.set(ip, { count: current.count + 1, resetAt: current.resetAt });
+      return res.status(401).json({ error: 'Incorrect username or password.' });
+    }
+    attempts.delete(ip);
+    const token = signSession(username, secret, now() + SESSION_MS);
+    res.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=${basePath || '/'}; SameSite=Strict; Max-Age=${Math.floor(SESSION_MS / 1000)}${secureCookie ? '; Secure' : ''}`);
+    return res.json({ ok: true });
+  });
+
+  app.post(`${apiPath}/logout`, sameOrigin, (req, res) => {
+    res.setHeader('Set-Cookie', `${COOKIE}=; HttpOnly; Path=${basePath || '/'}; SameSite=Strict; Max-Age=0${secureCookie ? '; Secure' : ''}`);
+    res.json({ ok: true });
+  });
+
+  app.post(`${apiPath}/mentor`, requireAuth, async (req, res) => {
+    if (!validMentorInput(req.body)) return res.status(400).json({ error: 'The mentor request is invalid or too large.' });
+    if (!env.LLM_BASE_URL || !env.LLM_API_KEY || !env.LLM_MODEL) return res.status(503).json({ error: 'The AI mentor is not configured. Add LLM_BASE_URL, LLM_API_KEY, and LLM_MODEL to the server environment.' });
+    let endpoint: URL;
+    try {
+      endpoint = new URL(env.LLM_BASE_URL);
+      if (endpoint.protocol !== 'https:' && !(endpoint.protocol === 'http:' && isLoopback(endpoint.hostname))) throw new Error();
+      endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/chat/completions`;
+    } catch {
+      return res.status(503).json({ error: 'The AI mentor server configuration is invalid.' });
+    }
+    const input = req.body;
+    const messages = [
+      { role: 'system', content: systemPrompt(input.mode, input.language, [input.task, input.text, ...(input.messages ?? []).map((message) => message.content)].filter(Boolean).join('\n')) },
+      ...(input.messages ?? []),
+      ...(!input.messages?.length && input.text ? [{ role: 'user', content: `${input.task ? `Task or question: ${input.task}\n\n` : ''}${input.text}` }] : []),
+      ...(input.task && input.messages?.length ? [{ role: 'user', content: `Task or question: ${input.task}` }] : []),
+    ];
+    try {
+      const response = await fetcher(endpoint, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.LLM_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: env.LLM_MODEL, messages, temperature: 0.3, max_tokens: 2000 }),
+        redirect: 'error',
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!response.ok) return res.status(502).json({ error: 'The AI mentor could not complete that request. Please try again later.' });
+      const data = await response.json() as { choices?: { message?: { content?: unknown } }[] };
+      const result = parseProviderContent(data.choices?.[0]?.message?.content);
+      if (!result) return res.status(502).json({ error: 'The AI mentor returned an unusable response. Please try again.' });
+      const output: { reply: string; feedback?: unknown } = { reply: result.reply };
+      const feedback = result.feedback;
+      if (validFeedback(feedback)) {
+        const writingTask = [input.task, input.text, ...(input.messages ?? []).map((message) => message.content)].filter(Boolean).join('\n');
+        const responseCriterion = /\btask\s*1\b/i.test(writingTask) ? 'Task Achievement' : 'Task Response';
+        const writingCriteria = [responseCriterion, 'Coherence and Cohesion', 'Lexical Resource', 'Grammatical Range and Accuracy'];
+        const writingFeedbackValid = input.mode !== 'writing' || (feedback.criteria.length === 4
+          && writingCriteria.every((name) => feedback.criteria.some((criterion) => criterion.name === name)));
+        if (writingFeedbackValid) output.feedback = feedback;
+      }
+      res.json(output);
+    } catch {
+      res.status(502).json({ error: 'The AI mentor is temporarily unavailable. Please try again later.' });
+    }
+  });
+
+  if (production && options.distDir) {
+    const root = path.resolve(options.distDir);
+    app.use(basePath || '/', express.static(root, { index: false }));
+    app.get([basePath || '/', `${basePath}/*path`], (req, res, next) => {
+      const requested = req.path.slice(basePath.length) || '/';
+      if (requested.startsWith('/api/')) return next();
+      res.sendFile(path.join(root, 'index.html'), (error) => { if (error) next(error); });
+    });
+  }
+
+  app.use((req, res) => res.status(404).json({ error: 'Not found.' }));
+  return app;
+}
