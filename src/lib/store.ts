@@ -17,6 +17,8 @@ export function isAppState(value: unknown): value is AppState {
   const skills = ['foundations', 'reading', 'listening', 'writing', 'speaking'];
   const date = (v: unknown) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) && new Date(`${v}T12:00:00`).getDate() === Number(v.slice(-2));
   return s.version === 1 && !!s.settings && date(s.settings.startDate) && Number.isFinite(s.settings.targetBand) && s.settings.targetBand >= 1 && s.settings.targetBand <= 9 && ['light', 'dark'].includes(s.settings.theme) && ['vi', 'en'].includes(s.settings.mentorLanguage)
+    && (s.settings.coachVoiceProvider === undefined || ['browser', 'elevenlabs'].includes(s.settings.coachVoiceProvider))
+    && (s.settings.readCoachReplies === undefined || typeof s.settings.readCoachReplies === 'boolean')
     && Array.isArray(s.logs) && s.logs.every(l => l && typeof l.id === 'string' && date(l.date) && Number.isFinite(l.minutes) && l.minutes > 0 && l.minutes <= 1440 && skills.includes(l.skill) && typeof l.title === 'string')
     && Array.isArray(s.errors) && s.errors.every(e => e && typeof e.id === 'string' && date(e.date) && skills.includes(e.skill) && ['question', 'answer', 'correct', 'explanation'].every(k => typeof e[k as keyof ErrorEntry] === 'string') && typeof e.resolved === 'boolean')
     && Array.isArray(s.vocabulary) && s.vocabulary.every(v => v && ['id', 'word', 'meaning', 'example'].every(k => typeof v[k as keyof VocabCard] === 'string') && date(v.due) && Number.isFinite(v.interval) && v.interval >= 0)

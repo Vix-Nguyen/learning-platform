@@ -32,3 +32,10 @@ Empty starting repository. Official IELTS research will be retained in docs/rese
 - Explain the why in Vietnamese; practise the answer in English.
 - Keep data portable and credentials server-side.
 - Prefer useful small practice loops over an unmaintainable course catalogue.
+
+## Current interface requirements
+
+- Learning pages show exercises, answers, feedback and actual progress. Put provider configuration in Settings; keep integration diagnostics out of the learner's view.
+- Use factual labels and necessary task instructions. Omit introductory taglines, motivational slogans and promotional product copy.
+- Dark mode uses a black canvas and neutral gray surfaces. Green is an action/selection accent, not the page or panel background.
+- Support narrow desktop multitasking windows down to 320px with the same usable single-column layout as mobile.

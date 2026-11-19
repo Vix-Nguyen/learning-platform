@@ -49,9 +49,9 @@ export default function Mentor({ open, onClose, language, aiConfigured, usesChat
   };
   return <div className="drawer-layer" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
     <aside className="mentor-drawer" role="dialog" aria-modal="true" aria-labelledby="mentor-title" ref={drawer}>
-      <header className="mentor-header"><div className="mentor-title-icon"><MessageCircle size={19} /></div><div><h2 id="mentor-title">Study mentor</h2><p>{aiConfigured ? 'Here to help you make the next step' : 'AI mentor is not connected yet'}</p></div><button className="icon-button" onClick={onClose} aria-label="Close mentor"><X size={19} /></button></header>
+      <header className="mentor-header"><div className="mentor-title-icon"><MessageCircle size={19} /></div><div><h2 id="mentor-title">Study mentor</h2>{!aiConfigured && <p>Chưa kết nối gia sư</p>}</div><button className="icon-button" onClick={onClose} aria-label="Close mentor"><X size={19} /></button></header>
       <div className="mentor-conversation" aria-live="polite">
-        {!messages.length ? <div className="mentor-welcome"><div className="mentor-welcome-mark"><MessageCircle size={24} /></div><h3>A thoughtful study partner</h3><p>Ask about IELTS, share a sentence, or practise explaining an idea. {language === 'vi' ? 'Phần giải thích sẽ ưu tiên tiếng Việt.' : 'I’ll answer in English.'}</p>
+        {!messages.length ? <div className="mentor-welcome">
           {quick.map(q => <button key={q.label} className="quick-prompt" onClick={() => setDraft(q.prompt)}><q.icon size={17} /><span>{q.label}</span><ArrowUp size={15} /></button>)}
         </div> : messages.map((m, i) => <div key={i} className={`mentor-message ${m.role}`}><span className="message-role">{m.role === 'user' ? 'You' : 'Mentor'}</span><p>{m.content}</p></div>)}
         {busy && <div className="mentor-thinking"><LoaderCircle className="spin" size={16} /> Thinking through your question…</div>}
@@ -59,7 +59,7 @@ export default function Mentor({ open, onClose, language, aiConfigured, usesChat
         <div ref={end} />
       </div>
       <form className="mentor-compose" onSubmit={e => { e.preventDefault(); void send(); }}>
-        {!aiConfigured && <p className="mentor-notice">The optional AI server isn’t configured. Your message won’t be sent until it is available.</p>}
+        {!aiConfigured && <p className="mentor-notice">Connect your mentor in Settings before sending a message.</p>}
         <div className="mentor-input-wrap"><textarea ref={input} value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }} placeholder="Ask a study question…" rows={2} maxLength={4000} aria-label="Message your study mentor" disabled={!aiConfigured || busy} /><button aria-label="Send message" type="submit" className="send-button" disabled={!draft.trim() || busy || !aiConfigured}><ArrowUp size={18} /></button></div>
         {usesChatGPT && <p className="mentor-footnote">Đang dùng gói ChatGPT · <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noreferrer">Manage usage</a></p>}
         <span className="mentor-footnote"><Check size={13} /> AI feedback is a learning aid, not an official IELTS score.</span>

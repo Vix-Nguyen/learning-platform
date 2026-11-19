@@ -11,8 +11,7 @@ export type SpeechRecognitionLike = {
 declare global { interface Window { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike } }
 export type VoiceProvider = 'browser' | 'elevenlabs';
 
-export function useCoachVoice(onTranscript: (text: string) => void, onFinished: (text: string) => void) {
-  const [provider, setVoiceProvider] = useState<VoiceProvider>('browser');
+export function useCoachVoice(provider: VoiceProvider, onTranscript: (text: string) => void, onFinished: (text: string) => void) {
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -43,6 +42,7 @@ export function useCoachVoice(onTranscript: (text: string) => void, onFinished: 
     if (mounted.current) { setListening(false); setTranscribing(false); setRecording(null); }
   }, []);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; cancelInput(); stopAudio(); }; }, [cancelInput, stopAudio]);
+  useEffect(() => { cancelInput(); stopAudio(); setError(''); }, [provider, cancelInput, stopAudio]);
 
   async function speak(text: string, language: 'en' | 'vi' = 'en') {
     stopAudio(); setError(''); const generation = outputGeneration.current;
@@ -140,8 +140,7 @@ export function useCoachVoice(onTranscript: (text: string) => void, onFinished: 
       instance.start(); setListening(true); inputTimeout.current = window.setTimeout(finishRecording, 120000);
     } catch { setError('Could not open the microphone. Check permission, or type your answer.'); }
   }
-  function setProvider(next: VoiceProvider) { cancelInput(); stopAudio(); setRecording(null); setError(''); setVoiceProvider(next); }
-  return { provider, setProvider, listening, transcribing, speaking, error, setError, recording, lastRequest, speak, retrySpeech, stopAudio, startRecording, finishRecording, cancelInput,
+  return { provider, listening, transcribing, speaking, error, setError, recording, lastRequest, speak, retrySpeech, stopAudio, startRecording, finishRecording, cancelInput,
     browserDictation: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition), browserSpeech: 'speechSynthesis' in window,
     retryTranscription: () => recording ? transcribe(recording, inputGeneration.current) : Promise.resolve(),
   };

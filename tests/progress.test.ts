@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addDays, localDate, weekDates, studyStreak, totalMinutes } from '../src/lib/progress';
-import { isAppState } from '../src/lib/store';
+import { actions, isAppState } from '../src/lib/store';
 import type { StudyLog } from '../src/types';
 
 test('calendar addition handles month/year boundaries without UTC drift', () => {
@@ -28,6 +28,20 @@ test('weekly quotas use Monday through Sunday and exact logged minutes', () => {
 test('backup validation rejects corrupt entries, impossible dates and unsafe quotas', () => {
   const state = { version: 1, settings: { startDate: '2026-11-18', targetBand: 6.5, theme: 'light', mentorLanguage: 'vi' }, logs: [], errors: [], vocabulary: [] };
   assert.equal(isAppState(state), true);
+  const backup = actions.exportData();
+  try {
+    actions.importData(JSON.stringify(state));
+    assert.deepEqual(JSON.parse(actions.exportData()).settings, state.settings);
+    for (const coachVoiceProvider of ['browser', 'elevenlabs']) {
+      for (const readCoachReplies of [true, false]) {
+        const settings = { ...state.settings, coachVoiceProvider, readCoachReplies };
+        actions.importData(JSON.stringify({ ...state, settings }));
+        assert.deepEqual(JSON.parse(actions.exportData()).settings, settings);
+      }
+    }
+  } finally { actions.importData(backup); }
+  assert.equal(isAppState({ ...state, settings: { ...state.settings, coachVoiceProvider: 'invalid' } }), false);
+  assert.equal(isAppState({ ...state, settings: { ...state.settings, readCoachReplies: 'true' } }), false);
   assert.equal(isAppState({ ...state, logs: [null] }), false);
   assert.equal(isAppState({ ...state, logs: [log('2026-02-30')] }), false);
   assert.equal(isAppState({ ...state, logs: [log('2026-11-18', -30)] }), false);
