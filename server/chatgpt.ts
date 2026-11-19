@@ -60,11 +60,13 @@ async function requireOk(response: Response) {
 }
 
 async function readResponseStream(response: Response): Promise<string> {
-  if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
-    throw new ChatGPTError('ChatGPT trả về dữ liệu không đọc được.', 502);
+  const requestId = response.headers.get('x-request-id') ?? response.headers.get('x-oai-request-id') ?? undefined;
+  const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
+  // The plan-usage proxy can omit Content-Type; completion is validated from SSE events below.
+  if (!response.body || (contentType && contentType !== 'text/event-stream')) {
+    throw new ChatGPTError('ChatGPT trả về dữ liệu không đọc được.', 502, undefined, requestId);
   }
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-  const requestId = response.headers.get('x-request-id') ?? undefined;
   let buffer = '';
   let output = '';
   try {
@@ -349,7 +351,7 @@ export function createChatGPTMentor(options: { origin: string; directory: string
         throw new ChatGPTError('Kết nối ChatGPT đã thay đổi. Hãy thử lại.', 409);
       }
       const response = await requireOk(await fetchOpenAI(`${RESOURCE}/responses`, {
-        method: 'POST', headers, signal: AbortSignal.timeout(90_000),
+        method: 'POST', headers: { ...headers, Accept: 'text/event-stream' }, signal: AbortSignal.timeout(90_000),
         body: JSON.stringify({ model: model.slug, instructions, input, store: false, stream: true }),
       }));
       return readResponseStream(response);

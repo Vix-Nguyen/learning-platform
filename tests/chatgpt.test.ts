@@ -34,18 +34,19 @@ test('local mentor verifies OAuth, honors consent, refreshes once and grades thr
   let responsesCount = 0;
   let planPermission = false;
   let invalidNonce = false;
-  let replyMode: 'success' | 'limit' | 'incomplete' = 'success';
+  let replyMode: 'success' | 'headerless' | 'headerless-incomplete' | 'json' | 'limit' | 'incomplete' = 'success';
   const captured: unknown[] = [];
 
   function sse(events: unknown[]) {
-    const text = events.map(event => 'data: ' + JSON.stringify(event) + '\r\n\r\n').join('');
+    const headerless = replyMode.startsWith('headerless');
+    const text = events.map(event => 'event: response\r\ndata: ' + JSON.stringify(event) + '\r\n\r\n').join('');
     const encoded = new TextEncoder().encode(text);
     return new Response(new ReadableStream({
       start(controller) {
         for (let i = 0; i < encoded.length; i += 13) controller.enqueue(encoded.slice(i, i + 13));
         controller.close();
       },
-    }), { headers: { 'Content-Type': 'text/event-stream', 'x-request-id': 'test-request' } });
+    }), { headers: { ...(headerless ? {} : { 'Content-Type': 'text/event-stream' }), [headerless ? 'x-oai-request-id' : 'x-request-id']: 'test-request' } });
   }
 
   const fetcher: typeof fetch = async (input, options) => {
@@ -85,10 +86,12 @@ test('local mentor verifies OAuth, honors consent, refreshes once and grades thr
       if (url.endsWith('/models')) return Response.json({ models: [{ visibility: 'hidden', slug: 'hidden' }, { visibility: 'list', slug: 'available-model' }] });
       responsesCount++;
       captured.push(JSON.parse(String(options?.body)));
+      assert.equal(new Headers(options?.headers).get('Accept'), 'text/event-stream');
+      if (replyMode === 'json') return Response.json({ output_text: 'Not a completed stream.' });
       if (replyMode === 'limit') return sse([{ type: 'response.failed', response: { error: { code: 'subscription_sharing_usage_limit_exceeded' } } }]);
       return sse([
         { type: 'response.output_text.delta', delta: JSON.stringify({ reply: 'Nhận xét', feedback }) },
-        ...(replyMode === 'success' ? [{ type: 'response.completed' }] : []),
+        ...(!replyMode.endsWith('incomplete') ? [{ type: 'response.completed' }] : []),
       ]);
     }
     throw new Error('Unexpected upstream endpoint');
@@ -180,6 +183,19 @@ test('local mentor verifies OAuth, honors consent, refreshes once and grades thr
     assert.match((captured[0] as { instructions: string }).instructions, /Task Achievement/);
     assert.equal((await post('mentor', writing, 'https://different.example')).status, 403);
 
+    // The plan-usage proxy can return valid SSE without a Content-Type header.
+    replyMode = 'headerless';
+    const headerless = await post('mentor', writing);
+    assert.equal(headerless.status, 200);
+    assert.deepEqual(await headerless.json(), { reply: 'Nhận xét', feedback });
+
+    replyMode = 'headerless-incomplete';
+    const interrupted = await post('mentor', writing);
+    assert.equal(interrupted.status, 502);
+    assert.equal((await interrupted.json()).requestId, 'test-request');
+    replyMode = 'json';
+    assert.equal((await post('mentor', writing)).status, 502);
+
     replyMode = 'limit';
     const limit = await post('mentor', writing);
     assert.equal(limit.status, 429);
@@ -192,7 +208,7 @@ test('local mentor verifies OAuth, honors consent, refreshes once and grades thr
     const refreshed = await Promise.all([post('mentor', writing), post('mentor', writing)]);
     assert.deepEqual(refreshed.map(response => response.status), [200, 200]);
     assert.equal(refreshCount, 1);
-    assert.equal(responsesCount, 5);
+    assert.equal(responsesCount, 8);
     assert.equal((await (await post('chatgpt/disconnect', { id })).json()).revoked, true);
     assert.equal(revokeCount, 1);
     assert.equal((await post('mentor', writing)).status, 401);
