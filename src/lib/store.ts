@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
-import type { AppState, StudyLog, ErrorEntry, VocabCard, Settings } from '../types';
+import type { AppState, StudyLog, ErrorEntry, VocabCard, Settings, CoachTask, MentorResponse } from '../types';
 import { localDate, addDays } from './progress';
+import { isCoachTask, parseCoachTask, parseCoachReview } from './coach';
 
 const KEY = 'fluentpath.v1';
 function emptyState(): AppState {
@@ -18,7 +19,9 @@ export function isAppState(value: unknown): value is AppState {
   return s.version === 1 && !!s.settings && date(s.settings.startDate) && Number.isFinite(s.settings.targetBand) && s.settings.targetBand >= 1 && s.settings.targetBand <= 9 && ['light', 'dark'].includes(s.settings.theme) && ['vi', 'en'].includes(s.settings.mentorLanguage)
     && Array.isArray(s.logs) && s.logs.every(l => l && typeof l.id === 'string' && date(l.date) && Number.isFinite(l.minutes) && l.minutes > 0 && l.minutes <= 1440 && skills.includes(l.skill) && typeof l.title === 'string')
     && Array.isArray(s.errors) && s.errors.every(e => e && typeof e.id === 'string' && date(e.date) && skills.includes(e.skill) && ['question', 'answer', 'correct', 'explanation'].every(k => typeof e[k as keyof ErrorEntry] === 'string') && typeof e.resolved === 'boolean')
-    && Array.isArray(s.vocabulary) && s.vocabulary.every(v => v && ['id', 'word', 'meaning', 'example'].every(k => typeof v[k as keyof VocabCard] === 'string') && date(v.due) && Number.isFinite(v.interval) && v.interval >= 0);
+    && Array.isArray(s.vocabulary) && s.vocabulary.every(v => v && ['id', 'word', 'meaning', 'example'].every(k => typeof v[k as keyof VocabCard] === 'string') && date(v.due) && Number.isFinite(v.interval) && v.interval >= 0)
+    && (s.coachTasks === undefined || Array.isArray(s.coachTasks) && s.coachTasks.every(isCoachTask))
+    && (s.activeCoachTaskId === undefined || typeof s.activeCoachTaskId === 'string' && !!s.coachTasks?.some(t => t.id === s.activeCoachTaskId));
 }
 let state = emptyState();
 try { const saved: unknown = JSON.parse(localStorage.getItem(KEY) || 'null'); if (isAppState(saved)) state = saved; } catch { /* Keep the usable fresh state. */ }
@@ -30,7 +33,38 @@ function save(next: AppState) {
   listeners.forEach(fn => fn());
 }
 export function useAppStore(): AppState { return useSyncExternalStore(fn => { listeners.add(fn); return () => listeners.delete(fn); }, () => state); }
+export function getAppState(): AppState { return state; }
+function updateCoachTask(id: string, update: (task: CoachTask) => CoachTask) {
+  if (!state.coachTasks?.some(task => task.id === id)) throw new Error('That coaching task is no longer available.');
+  save({ ...state, coachTasks: state.coachTasks.map(task => task.id === id ? update(task) : task) });
+}
 export const actions = {
+  createCoachTask(input: unknown) {
+    const values = parseCoachTask(input);
+    const task: CoachTask = { ...values, id: crypto.randomUUID(), createdAt: new Date().toISOString(), response: '', revision: 0, turns: [] };
+    save({ ...state, coachTasks: [...(state.coachTasks || []), task], activeCoachTaskId: task.id });
+    return task;
+  },
+  selectCoachTask(id: string) { if (!state.coachTasks?.some(t => t.id === id)) throw new Error('Task not found.'); save({ ...state, activeCoachTaskId: id }); },
+  updateCoachResponse(id: string, response: string) {
+    if (response.length > 12000) throw new Error('Keep your response under 12,000 characters.');
+    updateCoachTask(id, task => response === task.response ? task : { ...task, response, revision: task.revision + 1 });
+  },
+  appendCoachTurn(id: string, role: 'user' | 'assistant', content: string) {
+    if (!content.trim() || content.length > 12000) throw new Error('The coaching turn is empty or too long.');
+    updateCoachTask(id, task => {
+      if (task.turns.length >= 2000) throw new Error('Start a new coaching task to continue this conversation.');
+      return { ...task, turns: [...task.turns, { role, content, createdAt: new Date().toISOString() }] };
+    });
+  },
+  saveCoachReview(input: MentorResponse & { taskId: string; revision: number }) {
+    const review = parseCoachReview(input);
+    updateCoachTask(review.taskId, task => {
+      if (task.revision !== review.revision) throw new Error('The response changed. Read the current revision before saving feedback.');
+      if (!task.response.trim()) throw new Error('Add a response before saving an assessment.');
+      return { ...task, review: { reply: review.reply, ...(review.feedback ? { feedback: review.feedback } : {}), revision: review.revision, createdAt: new Date().toISOString() } };
+    });
+  },
   logStudy(input: Omit<StudyLog, 'id'>) { if (!Number.isFinite(input.minutes) || input.minutes <= 0 || input.minutes > 1440) return; save({ ...state, logs: [...state.logs, { ...input, id: crypto.randomUUID() }] }); },
   removeLog(id: string) { save({ ...state, logs: state.logs.filter(l => l.id !== id) }); },
   addErrors(entries: Omit<ErrorEntry, 'id' | 'resolved'>[]) { save({ ...state, errors: [...state.errors, ...entries.map(e => ({ ...e, id: crypto.randomUUID(), resolved: false }))] }); },

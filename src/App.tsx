@@ -11,8 +11,10 @@ import PracticeHub from './components/PracticeHub';
 import { Vocabulary } from './components/Vocabulary';
 import { ErrorLog } from './components/ErrorLog';
 import ChatGPTSettings from './components/ChatGPTSettings';
+import VoiceCoach from './components/VoiceCoach';
 
 const nav: { id: Page; label: string; icon: typeof Compass }[] = [
+  { id: 'coach', label: 'Voice coach', icon: MessageCircle },
   { id: 'dashboard', label: 'Overview', icon: Compass }, { id: 'planner', label: 'Study plan', icon: CalendarDays },
   { id: 'practice', label: 'Practice hub', icon: BookOpen }, { id: 'vocabulary', label: 'Vocabulary', icon: Sparkles },
   { id: 'errors', label: 'Error log', icon: CircleHelp }, { id: 'settings', label: 'Settings', icon: Settings2 },
@@ -23,7 +25,7 @@ const groups: { id: string; title: string; sub: string; minutes: number; skill: 
   { id: 'output', title: 'Writing & speaking', sub: 'Express your ideas', minutes: 90, skill: 'writing', icon: MessageCircle, color: 'amber' },
 ];
 const skillName: Record<Skill, string> = { foundations: 'Foundations', reading: 'Reading', listening: 'Listening', writing: 'Writing', speaking: 'Speaking' };
-const titles: Record<Page, string> = { dashboard: 'Overview', planner: 'Study plan', practice: 'Practice hub', vocabulary: 'Vocabulary', errors: 'Error log', settings: 'Settings' };
+const titles: Record<Page, string> = { dashboard: 'Overview', planner: 'Study plan', practice: 'Practice hub', coach: 'Voice coach', vocabulary: 'Vocabulary', errors: 'Error log', settings: 'Settings' };
 const today = localDate();
 function friendlyDate(date: string, options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'long', day: 'numeric' }) { return new Date(`${date}T12:00:00`).toLocaleDateString('en', options); }
 function uid() { return crypto.randomUUID(); }
@@ -31,7 +33,7 @@ function uid() { return crypto.randomUUID(); }
 export default function App() {
   const state = useAppStore();
   const [chatGPTResult] = useState(() => new URLSearchParams(window.location.search).get('chatgpt') ?? undefined);
-  const [page, setPage] = useState<Page>(chatGPTResult ? 'settings' : 'dashboard');
+  const [page, setPage] = useState<Page>(chatGPTResult ? 'settings' : import.meta.env.MODE === 'chatgpt-local' ? 'coach' : 'dashboard');
   const [menuOpen, setMenuOpen] = useState(false);
   const [mentorOpen, setMentorOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
@@ -120,6 +122,7 @@ export default function App() {
     <div className="main-column">
       {!focusMode && <header className="topbar"><button className="icon-button mobile-menu" aria-label="Open navigation" onClick={() => setMobileNav(true)}><Menu size={20}/></button><div className="breadcrumb"><span>Workspace</span><ChevronRight size={14}/><strong>{titles[page]}</strong></div><div className="topbar-actions"><button className="shortcut-button" aria-label="Open quick navigation" onClick={() => setMenuOpen(true)}><Search size={15}/><span>Jump to</span><kbd>⌘ K</kbd></button><span className="topbar-divider"/><button className="mentor-trigger" aria-label="Ask mentor" onClick={() => setMentorOpen(true)}><span className="mentor-trigger-icon"><Sparkles size={16}/></span><span>Ask mentor</span><kbd>⌘ J</kbd></button><button className="icon-button top-theme" aria-label="Toggle theme" onClick={() => actions.updateSettings({ theme: state.settings.theme === 'light' ? 'dark' : 'light' })}>{state.settings.theme === 'light' ? <Moon size={18}/> : <Sun size={18}/>}</button></div></header>}
       <main ref={currentPage} className={`page-content${focusMode ? ' focus-content' : ''}`} tabIndex={-1}>
+        <VoiceCoach visible={page === 'coach'} page={page} aiConfigured={auth?.aiConfigured ?? false} onNavigate={go}/>
         {page === 'dashboard' && <Dashboard state={state} todayMinutes={allToday} dueWords={dueWords} onStart={startTimer} onManual={() => setManualOpen(true)} onNavigate={go} onMentor={() => setMentorOpen(true)} onRemove={id => { actions.removeLog(id); setNotice('Study entry removed.'); }} />}
         {page === 'planner' && <Planner state={state} date={plannerDate} setDate={setPlannerDate} week={week} weekMinutes={weekMinutes} onStart={startTimer} onManual={() => setManualOpen(true)} />}
         {page === 'practice' && <section className="practice-shell">{showFocusTimer && <><header className="practice-toolbar"><div><h1>Study session</h1></div><div className="practice-toolbar-actions">{focusMode && <button className="btn btn-ghost" onClick={() => { setFocusMode(false); setRunning(false); }}><ArrowLeft size={16}/> Exit focus</button>}</div></header><div className="timer-panel panel"><div className="timer-left"><span className="timer-state"><span className={`status-dot${running ? ' live' : ''}`}/>{running ? 'SESSION IN PROGRESS' : seconds ? 'SESSION PAUSED' : 'READY WHEN YOU ARE'}</span><div className="timer-clock" aria-live="off">{elapsedLabel}</div><label className="timer-task-label">What are you working on?<input value={timerTask} onChange={e => setTimerTask(e.target.value)} disabled={running} aria-label="Study session title" /></label></div><div className="timer-controls"><button className="timer-main-button" onClick={() => setRunning(v => !v)} aria-label={running ? 'Pause timer' : 'Start timer'}>{running ? <Pause size={20}/> : <Play size={20} fill="currentColor"/>}<span>{running ? 'Pause' : seconds ? 'Resume' : 'Start session'}</span></button><button className="btn btn-ghost" onClick={() => { setRunning(false); setSeconds(0); }}><RotateCcw size={16}/> Reset</button><button className="btn btn-primary" disabled={seconds < 1} onClick={finishTimer}><Check size={16}/> Finish & log</button></div></div></>}<PracticeHub initialSkill={initialSkill} onAskMentor={askMentor} onFocusChange={handleFocusChange} /></section>}

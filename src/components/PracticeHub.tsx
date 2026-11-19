@@ -3,16 +3,12 @@ import { ArrowRight, BookOpen, Check, Clock3, Download, Headphones, Mic, Pause, 
 import { actions, useAppStore } from '../lib/store';
 import { mentorRequest } from '../lib/api';
 import { localDate } from '../lib/progress';
+import type { SpeechRecognitionLike } from '../lib/useCoachVoice';
 import type { AIFeedback, Skill } from '../types';
 import { cueCards, listeningScripts, officialLinks, readingDrills, taskPrompts } from '../data/practice';
 import './practice.css';
 
 type Props = { initialSkill?: 'reading' | 'listening' | 'writing' | 'speaking'; onAskMentor?: (prompt: string) => void; onFocusChange?: (focused: boolean) => void };
-type SpeechResultLike = { isFinal: boolean; 0: { transcript: string } };
-type SpeechRecognitionEventLike = { results: ArrayLike<SpeechResultLike> };
-type SpeechRecognitionErrorLike = { error: string };
-type SpeechRecognitionLike = { lang: string; interimResults: boolean; onresult: ((e: SpeechRecognitionEventLike) => void) | null; onerror: ((e: SpeechRecognitionErrorLike) => void) | null; onend: (() => void) | null; start(): void; stop(): void; abort(): void };
-declare global { interface Window { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike } }
 const tabs: { id: 'reading'|'listening'|'writing'|'speaking'; label: string; Icon: typeof Headphones }[] = [
   { id: 'reading', label: 'Reading', Icon: BookOpen }, { id: 'listening', label: 'Listening', Icon: Headphones }, { id: 'writing', label: 'Writing', Icon: PenLine }, { id: 'speaking', label: 'Speaking', Icon: Mic },
 ];

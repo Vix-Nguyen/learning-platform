@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen, CalendarDays, Dumbbell, House, Search, Settings2,
 import type { Page } from '../types';
 
 const items: { page: Page; label: string; icon: typeof House }[] = [
+  { page: 'coach', label: 'Voice coach', icon: BookOpen },
   { page: 'dashboard', label: 'Overview', icon: House }, { page: 'planner', label: 'Study plan', icon: CalendarDays },
   { page: 'practice', label: 'Practice hub', icon: Dumbbell }, { page: 'vocabulary', label: 'Vocabulary', icon: SpellCheck },
   { page: 'errors', label: 'Error log', icon: BookOpen }, { page: 'settings', label: 'Settings', icon: Settings2 },

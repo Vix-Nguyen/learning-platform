@@ -2,20 +2,24 @@
 
 A focused IELTS Academic workspace for a Vietnamese software engineer preparing for 6.5+ in six months. React + TypeScript + Tailwind, local browser storage, original mini drills, Vietnamese mentor explanations, and an optional remote AI adapter.
 
-See the [product review and prioritized backlog](docs/product-review-2026-11-18.md) for the current gaps, Vietnamese-first study flow, and a ChatGPT subscription mentor option for the main computer.
+Start with the [local voice coach and Site tools guide](docs/local-voice-coach.md). The [product review](docs/product-review-2026-11-18.md) records the earlier learning-product gaps and wider backlog.
 
-Live: [FluentPath](https://fluentpath-ielts.nguyenvipy.workers.dev), protected by a lightweight Cloudflare Worker. Credentials are kept in the ignored private `.env` and encrypted Worker bindings. No VPS is required.
+The current voice-coaching work runs locally. The [earlier hosted version](https://fluentpath-ielts.nguyenvipy.workers.dev) has not been updated by this change.
 
 ## Run quickly
 
 Requires Node.js 24+ and npm.
 
+On Windows, run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-local.ps1` once to build the app and install **FluentPath** Desktop/Start menu shortcuts. After setup, click the shortcut: no terminal, no rebuild on each launch, and the local server stops when all its dedicated app windows close. Nothing runs at Windows sign-in. See [local launcher details](docs/local-voice-coach.md#windows-shortcut).
+
 ```powershell
 npm install
-npm run dev
+npm run local
 ```
 
-Open `http://127.0.0.1:5173`. The optional API listens on `127.0.0.1:8787`. No provider account is needed for planning, practice, vocabulary or progress tracking.
+Open `http://127.0.0.1:5173`. This command builds and serves the app and its API on one loopback address with no app username/password, even if an old `.env` contains authentication settings. In **Settings**, use **Continue with ChatGPT** to authorize automatic coaching. Planning, saved practice and this chat's Site tools do not require model authorization.
+
+For development with hot reload, use `npm run dev` (Vite on `5173`, API on `8787`, both local; model API-key providers can be used). Use `npm run local` for the ChatGPT sign-in flow.
 
 ## Continue on another machine
 
@@ -25,10 +29,10 @@ With Node.js 24+ installed and GitHub access to this private repository:
 git clone https://github.com/Vix-Nguyen/learning-platform.git
 cd learning-platform
 npm ci
-npm run dev
+npm run local
 ```
 
-The private `.env` is excluded from Git. Local planning and practice run without it; configure your own `.env` from `.env.example` when enabling password sign-in or the mentor. Use Settings export/import to move browser-local progress separately.
+The private `.env` is excluded from Git. Local planning and practice run without it. Configure it only for an API-key model or optional ElevenLabs speech. Use Settings export/import to move browser-local progress separately; new coaching tasks, answers, conversation transcripts and feedback are included.
 
 For a purely static SPA, run `npm run dev:spa`. Build with `npm run build`, then `npm run preview` to inspect `dist/`. The static build can be hosted without a database. Hosting authentication requires an edge function, a server, or the hosting provider's access gate: a client-side password cannot protect a static site.
 
@@ -39,6 +43,7 @@ For a purely static SPA, run `npm run dev:spa`. Build with `npm run build`, then
 - Writing Task 1/Task 2 prompts, saved drafts, word count and optional criterion feedback/corrections from the configured mentor.
 - Speaking recording, playback/download, browser transcription where supported, editable transcript and optional text coaching. Pronunciation is not assessed from a transcript.
 - Vietnamese vocabulary cards, spaced review, import/export, light/dark themes, focus mode, keyboard navigation and an embedded AI drawer.
+- A voice coaching workspace: browser dictation and read-aloud, optional ElevenLabs speech, saved coaching conversations, revision-aware feedback and seven WebMCP Site tools for this chat.
 
 Progress belongs to the current browser/profile and origin. Export it in Settings before clearing storage or moving between local and hosted versions. This version has no cross-device sync. Audio recordings stay in memory until downloaded; drafts and progress stay in browser storage. Browser speech-recognition services may process microphone audio remotely; use manual transcription if that is unsuitable.
 
@@ -53,7 +58,11 @@ npm run mentor:local
 
 Open [FluentPath locally](http://127.0.0.1:5173/) and go to **Settings → Study mentor → Continue with ChatGPT**. Sign in to an eligible account, allow FluentPath to use your plan, and select **Thử kết nối** when you return. A successful test sends a short sample prompt and counts toward the plan's usage. Use **Manage usage** to view limits and **Tài khoản ChatGPT** to reconnect or disconnect.
 
-This command listens only at `127.0.0.1:5173`. Use the same browser and address to see existing study data from local development. Progress on the hosted site is stored separately. OAuth credentials stay in your computer's user directory, outside the repository and study backups. The local mode uses ChatGPT plan authorization for mentor chat, writing feedback, and speaking transcripts. OpenAI's current preview handles text and excludes audio input and transcription. [OpenAI integration guide](https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt) · [Preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)
+This command listens only at `127.0.0.1:5173` and does not require the old app password. Use the same browser and address to see existing study data from local development. Progress on the hosted site is stored separately. OAuth credentials stay in your computer's user directory, outside the repository and study backups. The local mode uses ChatGPT plan authorization for text-based coaching, mentor chat, writing feedback, and speaking transcripts. Speech recognition and playback are a separate browser/ElevenLabs layer; microphone audio is not sent to the ChatGPT subscription adapter. [OpenAI integration guide](https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt) · [Preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)
+
+## Voice and this ChatGPT chat
+
+Open the local app in ChatGPT's built-in browser and choose **Voice coach**. Its seven Site tools let this chat read the current answer, assign a task, save revision-bound feedback, add review vocabulary, and request or stop speech. A separate MCP server or tunnel is not needed for this open-page workflow. See [the connection guide](docs/local-voice-coach.md) for the tools, permission boundaries and optional ElevenLabs configuration.
 
 ## Connect an API-key provider
 

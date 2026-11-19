@@ -2,6 +2,8 @@
 
 Confirmed: IELTS Academic, Vietnamese learner, light-first calm workspace with dark mode, one next-session action. Static SPA preferred; do not use the previous VPS. Local is an accepted fallback.
 
+Current scope (19 November 2026): single-user local voice coach with on-demand Windows shortcuts and no startup service. Shared hosting, individual accounts and users bringing AI subscriptions are deferred to [future multi-user planning](future-multi-user.md).
+
 1. Build a React/TypeScript static SPA with local progress, original mini drills, vocabulary review, error log, weekday planner and study timer. Verify persistence, scoring and mobile navigation.
 2. Add writing and speaking workspaces with saved drafts, recording/download, browser transcription where supported, and an embedded mentor. Vietnamese explanations by default. Verify supported/unsupported/error states. Pronunciation requires audio analysis and cannot be inferred from a transcript.
 3. Add an optional Node server with password sessions and a server-side OpenAI-compatible proxy. No secrets in Vite variables. Verify unauthenticated access, failed login, invalid requests, missing AI configuration and provider errors with tests.

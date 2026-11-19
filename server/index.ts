@@ -11,7 +11,8 @@ try {
 }
 
 const useChatGPT = process.argv.includes('--chatgpt-local');
-const host = useChatGPT ? '127.0.0.1' : process.env.HOST || '127.0.0.1';
+const local = useChatGPT || process.argv.includes('--local');
+const host = local ? '127.0.0.1' : process.env.HOST || '127.0.0.1';
 const port = useChatGPT ? 5173 : Number(process.env.PORT || 8787);
 const production = process.env.NODE_ENV === 'production';
 const origin = `http://${host}:${port}`;
@@ -19,7 +20,7 @@ const directory = process.platform === 'win32' && process.env.LOCALAPPDATA
   ? path.join(process.env.LOCALAPPDATA, 'FluentPath', 'chatgpt')
   : path.join(homedir(), '.config', 'fluentpath-ielts', 'chatgpt');
 const app = createApp({
-  host, production, distDir: path.join(root, 'dist'),
+  host, production, local, distDir: path.join(root, 'dist'),
   env: useChatGPT ? { ...process.env, APP_BASE_PATH: '/' } : process.env,
   chatgpt: useChatGPT ? { origin, directory } : undefined,
 });
