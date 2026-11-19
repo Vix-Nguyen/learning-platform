@@ -38,7 +38,7 @@ For a purely static SPA, run `npm run dev:spa`. Build with `npm run build`, then
 
 ## What's included
 
-- Five-hour weekday plan: 90m foundations, 120m listening/reading, 90m writing/speaking; actual study logs, quota bars, timer, streak and six-month roadmap.
+- Four-hour weekday plan (20 hours/week): 60m foundations, 90m listening/reading, 90m writing/speaking; actual study logs, quota bars, timer, streak and six-month roadmap.
 - Original short reading/listening drills with immediate raw scores, explanations and an error log. Listening uses browser synthetic speech; these are mini drills, not full official tests.
 - Writing Task 1/Task 2 prompts, saved drafts, word count and optional criterion feedback/corrections from the configured mentor.
 - Speaking recording, playback/download, browser transcription where supported, editable transcript and optional text coaching. Pronunciation is not assessed from a transcript.

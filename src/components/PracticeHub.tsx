@@ -118,7 +118,7 @@ export default function PracticeHub({ initialSkill = 'reading', onAskMentor, onF
   function askMentor(prompt: string) { if (onAskMentor) onAskMentor(prompt); else setFeedbackError('The mentor panel is not available in this view.'); }
   function setSpeakingTranscript(value: string) { setTranscript(value); try { localStorage.setItem(TRANSCRIPT_KEY, value); setTranscriptStorageError(''); } catch { setTranscriptStorageError('Could not save the transcript in browser storage. Copy it before leaving.'); } }
   return <section className="practice-page practice-hub">
-    <header className="page-heading"><div><h1>Practice hub</h1></div><div className="practice-clock"><Clock3 size={17}/><span>5h daily plan</span></div></header>
+    <header className="page-heading"><div><h1>Practice hub</h1></div><div className="practice-clock"><Clock3 size={17}/><span>4h daily plan</span></div></header>
     <nav className="practice-tabs" aria-label="Practice skills">{tabs.map(({ id, label, Icon }) => <button key={id} className={skill === id ? 'active' : ''} aria-current={skill === id ? 'page' : undefined} onClick={() => switchSkill(id)}><Icon size={17}/>{label}</button>)}</nav>
     {skill === 'reading' || skill === 'listening' ? <div className="practice-layout"><main className="practice-main">
       <div className="practice-section-heading"><div><h2>{skill === 'reading' ? drill.title : script.title}</h2></div><span className="badge">4 questions · original practice</span></div>

@@ -11,14 +11,14 @@ Prepared 18 November 2026. Sources checked before implementation. Exercises in t
 
 ## Plan (product recommendation)
 
-This plan is a study recommendation, not a promise of a band outcome. Start with a diagnostic. Six months at five hours every weekday is a substantial workload; breaks and sustainable review matter.
+This plan is a study recommendation, not a promise of a band outcome. Start with a diagnostic. Six months at four hours every weekday is a substantial workload; breaks and sustainable review matter.
 
 1. Month 1: rebuild grammar, vocabulary, intelligibility and daily input.
 2. Months 2–3: learn question types and establish timed mini-task routines.
 3. Months 4–5: practise under time constraints and repair recurring mistakes.
 4. Month 6: use official full materials for mocks, target weak areas, then taper.
 
-Daily budget: 90m foundations, 120m listening/reading, 90m writing/speaking. Weekends optional. Learning loop: attempt → check → diagnose → redo → log. For a Vietnamese learner, explanations and vocabulary meanings default to Vietnamese while prompts and exam output remain English. Prioritise meaningful collocations, countability/articles, tense consistency, sentence boundaries and intelligibility based on individual error evidence rather than assumptions about nationality.
+Daily budget: 60m foundations, 90m listening/reading, 90m writing/speaking. Weekends optional. Learning loop: attempt → check → diagnose → redo → log. For a Vietnamese learner, explanations and vocabulary meanings default to Vietnamese while prompts and exam output remain English. Prioritise meaningful collocations, countability/articles, tense consistency, sentence boundaries and intelligibility based on individual error evidence rather than assumptions about nationality.
 
 ## Implementation choices
 

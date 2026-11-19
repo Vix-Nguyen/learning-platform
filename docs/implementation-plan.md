@@ -15,7 +15,7 @@ Operate mode: predictable navigation, familiar controls, generous reading space.
 
 First viewport: 224px left rail (brand, Overview, Study plan, Practice hub, Vocabulary, Error log, Settings). Main area: date and mentor action, a calm greeting, a three-column study allocation strip, today's study queue with one start action, and a compact six-month roadmap. Right utility column contains goal and next review. Schedule is a list of tasks, not a grid of marketing cards. At narrow widths use compact top navigation and a single column. Mentor opens as a labelled, dismissible side drawer with focus management.
 
-Signature: the daily 300-minute study strip uses three distinct segments aligned to actual logged minutes. Timer progress and planner allocations share that language. No estimated IELTS score until real evidence exists.
+Signature: the daily 240-minute study strip uses three distinct segments aligned to actual logged minutes. Timer progress and planner allocations share that language. No estimated IELTS score until real evidence exists.
 
 UI states: fresh start with zero activity, partial quota, completed task, paused timer, unconfigured AI, pending/error AI request, empty errors, vocabulary answer revealed, recording supported/unsupported, import validation and storage failure.
 
@@ -23,4 +23,4 @@ Keyboard: Ctrl/Cmd+K opens navigation, Ctrl/Cmd+J mentor, Escape closes overlays
 
 ## Content and learning loop
 
-90m foundations + 120m listening/reading + 90m writing/speaking each weekday. Start with a diagnostic, then rebuild (month 1), practise deliberately (months 2–3), consolidate under time (months 4–5), and prepare for the exam (month 6). Original short drills demonstrate the interface; official external resources provide fuller materials. Attempt → review → classify mistake → redo. AI feedback is provisional, never official assessment.
+60m foundations + 90m listening/reading + 90m writing/speaking each weekday. Start with a diagnostic, then rebuild (month 1), practise deliberately (months 2–3), consolidate under time (months 4–5), and prepare for the exam (month 6). Original short drills demonstrate the interface; official external resources provide fuller materials. Attempt → review → classify mistake → redo. AI feedback is provisional, never official assessment.
