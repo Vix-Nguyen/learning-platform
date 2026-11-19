@@ -23,7 +23,7 @@ For development with hot reload, use `npm run dev` (Vite on `5173`, API on `8787
 
 ## Continue on another machine
 
-With Node.js 24+ installed and GitHub access to this private repository:
+With Node.js 24+ installed:
 
 ```powershell
 git clone https://github.com/Vix-Nguyen/learning-platform.git

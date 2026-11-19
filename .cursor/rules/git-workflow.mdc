@@ -3,7 +3,7 @@ description: Commit and push each completed project change
 alwaysApply: true
 ---
 
-- After completing a change, run the appropriate checks, commit the task's files, and push the current branch to origin before reporting completion.
-- Push new branches with upstream tracking. Keep secrets, generated builds and unrelated user edits out of commits.
-- Do not force-push or merge into another branch unless requested. If a commit or push fails, report the blocker and the local branch/commit state.
+- This is a personal project. Work directly on `main` and push to `origin/main`; do not create feature branches or pull requests unless the user explicitly asks.
+- After completing a change, run the appropriate checks, commit the task's files, and push before reporting completion.
+- Keep secrets, generated builds and unrelated user edits out of commits. Never force-push. If a commit or push fails, report the blocker and the local branch/commit state.
 - Include the pushed branch and short commit ID in the completion message.
