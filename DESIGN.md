@@ -101,7 +101,7 @@ Forest green carries navigation and primary actions; soft tints distinguish sele
 - **Deep ink** (`{colors.ink}`), **secondary ink** (`{colors.ink-secondary}`), and **muted text** (`{colors.text-muted}`): Primary, supporting, and tertiary text.
 - **Soft divider** (`{colors.divider}`): Borders and separators.
 
-Dark mode remaps these semantic roles: background `#111a16`, surface `#19231e`, muted surface `#202c26`, ink `#edf3ee`, secondary ink `#c3d0c7`, muted text `#93a398`, divider `#2c3c33`, accent `#75a58e`, sage `#9bb7a3`, amber `#d3a658`, listening blue `#91b4d0`, and danger `#e58e85`.
+Dark mode remaps these semantic roles to neutral green charcoal: background `#131817`, surface `#1d2522`, muted surface `#26312c`, ink `#f0f5f1`, secondary ink `#d2ded6`, muted text `#b0beb5`, divider `#3d4c44`, accent `#91ceb0`, accent hover `#ace0c5`, accent-soft `#273e32`, sage `#9bb7a3`, amber `#e4bd78`, listening blue `#a6c9e2`, and danger `#f1a39c`. Form controls use a separate visible border (`#6d8176` in dark mode, `#819287` in light mode). The `--on-accent` role is dark ink `#14251b` on mint actions and white on light-mode forest actions, including goal-card supporting copy. Selection uses explicit dark ink on a pale green fill; focus outlines use the full accent color.
 
 **The Semantic Color Rule.** Use status colors for their established study meaning; never rely on color alone to communicate a result.
 
@@ -124,7 +124,7 @@ Dark mode remaps these semantic roles: background `#111a16`, surface `#19231e`, 
 
 Desktop uses a fixed 224px navigation rail, sticky top bar, and centered content with a 1440px maximum width. Main page gutters are 48px at the standard desktop size and 16px on mobile. Dashboard content pairs its main study queue with a narrow utility column; practice pages use a main column and 250px supporting aside. Panels use compact, consistent internal spacing while reading passages receive more line height.
 
-At 900px the dashboard and settings collapse to a single main column. At 680px the rail becomes a slide-in menu and content becomes single-column; study allocation and roadmap adapt vertically. Practice-specific columns collapse by 760px. Preserve readable text and visible controls as layouts narrow.
+At 900px the dashboard and settings collapse to a single main column. At 680px the rail becomes a slide-in menu and content becomes single-column; study allocation and roadmap adapt vertically. Practice-specific columns collapse by 760px. At 540px and below, including narrow desktop windows, header search and mentor actions use their existing accessible names with icon-only presentation; primary controls reach 44px, settings groups stack, and practice tabs form a two-column grid. Long account and task text wraps, while data tables retain local horizontal scrolling. Preserve readable text and visible controls down to 320px without hiding page overflow.
 
 ## Elevation & Depth
 
@@ -145,7 +145,7 @@ Controls use gently rounded corners, while panels and dialogs use a slightly ful
 - **Shape:** Gently rounded (8px); compact controls may use 7–9px variants.
 - **Primary:** Forest fill with white text, 38px minimum height, and horizontal padding (14px). Hover shifts to forest-hover; dark mode uses dark text for contrast.
 - **Secondary / Ghost:** Surface fill, divider border, secondary ink; hover introduces a quiet forest tint.
-- **Focus / Disabled:** Keyboard focus has a visible 3px accent-mixed outline with 2px offset. Disabled controls dim and show a not-allowed cursor.
+- **Focus / Disabled:** Keyboard focus has a visible 3px accent outline with 2px offset. Disabled controls dim and show a not-allowed cursor.
 
 ### Chips
 - **Style:** Soft semantic or forest-tinted fill with readable foreground; badges are compact rounded pills.
@@ -159,8 +159,8 @@ Controls use gently rounded corners, while panels and dialogs use a slightly ful
 - **Internal Padding:** Common panel padding is around 17–22px; passage and writing surfaces allow more room.
 
 ### Inputs / Fields
-- **Style:** Native input, select, and textarea controls share surface background, divider border, 8px radius, and inherited type.
-- **Focus:** Accent border with a visible accent-mixed outline; maintain the browser's clear keyboard focus affordance.
+- **Style:** Native input, select, and textarea controls share surface background, control border, 8px radius, and inherited type.
+- **Focus:** Accent border with a visible accent outline; maintain the browser's clear keyboard focus affordance.
 - **Error / Disabled:** Errors use danger text and soft danger background; disabled controls dim.
 
 ### Navigation

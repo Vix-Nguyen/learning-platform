@@ -10,12 +10,12 @@
 .coach-task, .coach-response, .coach-conversation, .coach-review { padding: 24px; }
 .coach-task h2 { margin: 22px 0 12px; font-size: 23px; line-height: 1.4; letter-spacing: -.025em; }
 .coach-task-heading, .coach-response-heading, .coach-review header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-.coach-history-label { display: grid; gap: 4px; max-width: 240px; color: var(--muted); font-size: 11px; }
-.coach-history-label select { max-width: 100%; padding: 6px 9px; font-size: 12px; }
+.coach-history-label { min-width: 0; display: grid; gap: 4px; max-width: 240px; color: var(--muted); font-size: 11px; }
+.coach-history-label select { min-width: 0; width: 100%; max-width: 100%; padding: 6px 9px; font-size: 12px; }
 .coach-prompt { margin: 0 0 20px; font-size: 18px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
 .coach-response h2, .coach-conversation h2, .coach-review h2 { margin: 0; font-size: 17px; }
 .coach-response-heading { margin-bottom: 15px; }.coach-response-heading .muted { font-size: 11px; }
-.coach-response textarea { width: 100%; min-height: 175px; padding: 15px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 16px; line-height: 1.75; resize: vertical; }
+.coach-response textarea { width: 100%; min-height: 175px; padding: 15px; border: 1px solid var(--control-border); border-radius: 10px; background: var(--bg); font-size: 16px; line-height: 1.75; resize: vertical; }
 .coach-microphone-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
 .coach-recording { color: var(--danger); background: var(--danger-soft); }
 .coach-checkbox { display: flex; gap: 9px; align-items: flex-start; font-size: 12px; color: var(--ink-2); line-height: 1.7; }
@@ -43,3 +43,7 @@
 @media (max-width: 1100px) { .coach-layout { grid-template-columns: minmax(0, 1fr) 240px; gap: 16px; }.coach-task, .coach-response, .coach-conversation, .coach-review { padding: 18px; } }
 @media (max-width: 850px) { .coach-layout { grid-template-columns: minmax(0, 1fr); }.coach-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }.coach-connection:last-child { grid-column: 1 / -1; } }
 @media (max-width: 540px) { .coach-sidebar { grid-template-columns: minmax(0, 1fr); }.coach-task h2 { font-size: 21px; }.coach-prompt { font-size: 16px; }.coach-microphone-row > button { width: 100%; min-height: 44px; }.coach-history-label { width: 100%; max-width: none; }.coach-task-heading { align-items: start; }.coach-correction { grid-template-columns: 1fr; }.coach-empty { padding: 34px 20px; }.coach-review header { align-items: flex-start; }.coach-review .badge { white-space: normal; } }
+
+@media (max-width: 540px) {
+  .voice-coach-page .btn { min-height: 44px; max-width: 100%; white-space: normal; }.coach-task h2 { overflow-wrap: anywhere; }.coach-task-heading > *, .coach-response-heading > *, .coach-review header > *, .coach-connection > label { min-width: 0; max-width: 100%; }.coach-task, .coach-response, .coach-conversation, .coach-review, .coach-connection { min-width: 0; }.coach-microphone-row > button { min-width: 0; }.coach-connection .btn { width: 100%; }
+}
