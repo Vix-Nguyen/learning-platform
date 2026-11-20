@@ -23,16 +23,39 @@ For development with hot reload, use `npm run dev` (Vite on `5173`, API on `8787
 
 ## Continue on another machine
 
-With Node.js 24+ installed:
+### macOS (recommended: clone once)
 
-```powershell
+Install [Node.js 24+ with npm](https://nodejs.org/en/download) for your Mac (Apple Silicon or Intel). With `nvm`, run `nvm install` and `nvm use` inside this project; `.nvmrc` selects Node 24.
+
+In Terminal:
+
+```sh
 git clone https://github.com/Vix-Nguyen/learning-platform.git
 cd learning-platform
+npm run setup:mac
+```
+
+Setup installs the locked dependencies, builds the app, and creates **FluentPath.command** on your Desktop. Double-click it to start the saved build and open your default browser at `http://127.0.0.1:5173/`. Keep its Terminal window open while studying; press **Control-C** there to stop the server. Closing just the browser tab leaves the server running. No rebuild is needed on each launch, and nothing starts at login. Keep the project folder in place; rerun setup if you move it or change your Node installation.
+
+To get future updates, stop FluentPath, open Terminal in the project folder, and run:
+
+```sh
+git pull --ff-only
+npm run setup:mac
+```
+
+If you prefer downloading, use **Code → Download ZIP** on the [GitHub repository](https://github.com/Vix-Nguyen/learning-platform), unzip it into a permanent folder, open Terminal there, and run `npm run setup:mac`. A ZIP has no Git history, so updates require a fresh download. [GitHub archive guide](https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives).
+
+Both methods build on your Mac; do not copy Windows `node_modules`. No Docker, database, or desktop app framework is required. For a terminal-only launch on macOS or other platforms, with Node.js 24+ installed:
+
+```sh
 npm ci
 npm run local
 ```
 
-The private `.env` is excluded from Git. Local planning and practice run without it. Configure it only for an API-key model or optional ElevenLabs speech. Use Settings export/import to move browser-local progress separately; new coaching tasks, answers, conversation transcripts and feedback are included.
+The private `.env` is excluded from Git. Local planning and practice run without it. Sign in to ChatGPT again in Settings on the Mac; credentials are not transferred with the repository. Configure `.env` only for an API-key model or optional ElevenLabs speech. Use Settings export/import to move browser-local progress separately; new coaching tasks, answers, conversation transcripts and feedback are included. Keep using the same browser/profile and `127.0.0.1:5173` to see that imported progress.
+
+The [macOS build workflow](https://github.com/Vix-Nguyen/learning-platform/actions/workflows/macos.yml) checks installation, build, tests, and launcher startup/shutdown on Apple Silicon and Intel Macs. It records the browser-open request without testing browser UI, microphone access, or live ChatGPT sign-in.
 
 For a purely static SPA, run `npm run dev:spa`. Build with `npm run build`, then `npm run preview` to inspect `dist/`. The static build can be hosted without a database. Hosting authentication requires an edge function, a server, or the hosting provider's access gate: a client-side password cannot protect a static site.
 

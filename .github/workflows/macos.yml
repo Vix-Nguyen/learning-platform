@@ -1,0 +1,75 @@
+name: macOS build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Node 24 / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install, build, and create Desktop launcher
+        run: npm run setup:mac
+      - name: Test application
+        run: npm test
+      - name: Verify launcher startup, port conflict, and shutdown
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/setup-local-macos.sh
+          bash -n scripts/launch-local-macos.sh
+          test -x "$HOME/Desktop/FluentPath.command"
+
+          # Record browser requests without opening a GUI in CI.
+          mock_bin="$(mktemp -d)"
+          export FLUENTPATH_BROWSER_LOG="$RUNNER_TEMP/fluentpath-browser.log"
+          printf '#!/bin/sh\nprintf "%%s\\n" "$1" > "$FLUENTPATH_BROWSER_LOG"\n' > "$mock_bin/open"
+          chmod u+x "$mock_bin/open"
+          PATH="$mock_bin:$PATH" bash "$HOME/Desktop/FluentPath.command" > "$RUNNER_TEMP/fluentpath.log" 2>&1 &
+          launcher_pid=$!
+          cleanup() {
+            if [[ -n "$launcher_pid" ]]; then
+              kill -TERM "$launcher_pid" 2>/dev/null || true
+              wait "$launcher_pid" 2>/dev/null || true
+            fi
+            cat "$RUNNER_TEMP/fluentpath.log"
+          }
+          trap cleanup EXIT
+          for ((attempt = 0; attempt < 100; attempt++)); do
+            if [[ -s "$FLUENTPATH_BROWSER_LOG" ]]; then break; fi
+            sleep 0.2
+          done
+          test "$(cat "$FLUENTPATH_BROWSER_LOG")" = 'http://127.0.0.1:5173/'
+          curl --noproxy '*' --max-time 2 --fail --silent http://127.0.0.1:5173/api/session | grep -q '"authEnabled":false'
+          curl --noproxy '*' --max-time 2 --fail --silent http://127.0.0.1:5173/ | grep -q '<div id="root">'
+
+          if bash "$HOME/Desktop/FluentPath.command" > "$RUNNER_TEMP/fluentpath-second.log" 2>&1; then
+            echo 'A second launcher should refuse the occupied port.' >&2
+            exit 1
+          fi
+          grep -q 'Port 5173 is in use' "$RUNNER_TEMP/fluentpath-second.log"
+          curl --noproxy '*' --max-time 2 --fail --silent http://127.0.0.1:5173/api/session >/dev/null
+
+          kill -TERM "$launcher_pid"
+          wait "$launcher_pid"
+          launcher_pid=''
+          if curl --noproxy '*' --max-time 2 --fail --silent http://127.0.0.1:5173/api/session >/dev/null; then
+            echo 'The launcher left its local server running.' >&2
+            exit 1
+          fi

@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "concurrently -k -n api,web \"tsx watch server/index.ts --local\" \"vite --host 127.0.0.1\"",
     "dev:spa": "vite --host 127.0.0.1",
@@ -12,6 +15,7 @@
     "start": "tsx server/index.ts",
     "mentor:local": "npm run build -- --base / --mode chatgpt-local && tsx server/index.ts --chatgpt-local",
     "local": "npm run mentor:local",
+    "setup:mac": "bash scripts/setup-local-macos.sh",
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {

@@ -9,6 +9,20 @@ npm run local
 
 Open `http://127.0.0.1:5173/`. The web app and local API share this address. This launch mode forces IPv4 loopback and bypasses the old app username/password settings. Hosted deployments and their credentials are unchanged. `npm run dev` is the hot-reload alternative with a local API at port 8787.
 
+## macOS shortcut
+
+With Node.js 24+ and npm installed, open Terminal in the cloned or downloaded project and run:
+
+```sh
+npm run setup:mac
+```
+
+This installs dependencies, builds once, and creates **FluentPath.command** on your Desktop. Double-click it to start the local server and open your default browser. Keep the Terminal window open; **Control-C** stops the server. Closing only the browser tab does not stop it. Nothing is added to login items. If port 5173 is occupied, stop the existing server before launching again.
+
+The shortcut remembers the project folder and Node installation. Keep both in place, or rerun setup after moving/upgrading them. After `git pull --ff-only`, stop the app and rerun setup to refresh dependencies and the saved build. Setup does not fetch Git updates itself.
+
+Progress stays in the browser/profile you use for `http://127.0.0.1:5173/`. Move it from Windows using Settings export/import. Sign in to ChatGPT again on the Mac; private credentials stay outside the project at `~/.config/fluentpath-ielts/chatgpt`. The Windows `.env`, browser profile, and `node_modules` are not needed. See the [Mac setup and ZIP alternative](../README.md#macos-recommended-clone-once).
+
 ## Windows shortcut
 
 Run this once after installing Node.js 24+:
